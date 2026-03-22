@@ -1,0 +1,13 @@
+# Python (Backend & AI)
+**/venv/
+**/__pycache__/
+*.pyc
+db.sqlite3
+
+# Node.js (Frontend)
+**/node_modules/
+frontend/dist/
+
+# OS rác
+.DS_Store
+Thumbs.db
