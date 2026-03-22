@@ -1,16 +1,23 @@
-# React + Vite
+# 💻 Frontend - Du Lịch Thông Minh (N09_TDTT)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Chào mừng các thành viên nhóm 09 đến với phần giao diện của đồ án. Chúng ta sử dụng **ReactJS** kết hợp với **Vite** để đạt hiệu năng tối ưu nhất.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## 📂 Cấu trúc thư mục (Folder Structure)
 
-## React Compiler
+Để đảm bảo code không bị chồng chéo, mọi người vui lòng tuân thủ cấu trúc thư mục `src/` đã được thiết lập sẵn:
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```text
+src/
+├── assets/             # Hình ảnh, icons, logo (dùng import trực tiếp vào code).
+├── components/         # Các thành phần giao diện có thể tái sử dụng.
+│   ├── common/         # Button, Input, Modal, Card... (nhỏ, dùng nhiều nơi).
+│   └── layout/         # Navbar, Footer, Sidebar... (khung cố định của web).
+├── hooks/              # Các Custom Hooks để xử lý logic React riêng biệt.
+├── pages/              # Giao diện các trang chính (Home, Map, Login, Dashboard...).
+├── services/           # Chứa các file gọi API (Axios/Fetch) kết nối với Django Backend.
+├── utils/              # Các hàm bổ trợ (Format tiền tệ, xử lý chuỗi, tính toán...).
+├── App.jsx             # Component gốc - Nơi cấu hình Routes (điều hướng trang).
+├── main.jsx            # File khởi tạo - Điểm bắt đầu của ứng dụng.
+└── index.css           # CSS dùng chung toàn hệ thống.
