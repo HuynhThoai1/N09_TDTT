@@ -6,22 +6,26 @@
 
 ```text
 N09_TDTT/
-│
-├── ai_engine/             # Nơi chứa model Machine Learning và thuật toán tìm đường
-│   └── venv/              # Môi trường ảo Python (KHÔNG đẩy lên Git)
-│
-├── backend/               # Máy chủ xử lý logic nghiệp vụ (Django)
-│   ├── core/              # Cấu hình trung tâm (settings.py, định tuyến API)
-│   ├── venv/              # Môi trường ảo Python (KHÔNG đẩy lên Git)
-│   ├── db.sqlite3         # Database mặc định để test
-│   └── manage.py          # Công cụ quản trị Backend
-│
-├── database/              # Lưu bản thiết kế ERD, script SQL và mock data
-│
-├── frontend/              # Giao diện người dùng (ReactJS + Vite)
-│   ├── src/               # Code chính: Components, Pages, gọi API
-│   ├── public/            # Tài nguyên tĩnh (hình ảnh, icon)
-│   ├── node_modules/      # Thư viện JavaScript (KHÔNG đẩy lên Git)
-│   └── package.json       # Khai báo cấu hình frontend
-│
-└── readme.md              # Tài liệu hướng dẫn cài đặt dự án
+├── .gitignore                  # Cấu hình các file/thư mục không đưa lên Git
+├── readme.md                   # Tài liệu tổng quan và hướng dẫn dự án
+├── ai_engine/                  # Thành phần AI: mô hình và thuật toán xử lý thông minh
+│   └── (các module nội bộ)     # Tổ chức code AI theo chức năng
+├── backend/                    # Máy chủ Django xử lý nghiệp vụ và cung cấp API
+│   ├── manage.py               # Công cụ chạy server, migrate, tạo dữ liệu mẫu
+│   ├── requirements.txt        # Danh sách thư viện Python cần cài
+│   ├── db.sqlite3              # Cơ sở dữ liệu SQLite dùng cho môi trường test/dev
+│   ├── api/                    # App API tổng hợp, đầu mối xử lý endpoint chung
+│   ├── core/                   # Cấu hình trung tâm Django (settings, urls, wsgi, asgi)
+│   ├── tours/                  # App quản lý tour, lịch trình, điểm đến
+│   └── users/                  # App quản lý người dùng và xác thực
+├── database/                   # Tài liệu dữ liệu: ERD, script SQL, mock data
+│   └── (tài nguyên dữ liệu)    # Nơi lưu thiết kế và dữ liệu phục vụ phát triển
+└── frontend/                   # Ứng dụng giao diện người dùng (ReactJS + Vite)
+    ├── src/                    # Mã nguồn chính: pages, components, services, hooks
+    ├── public/                 # Tài nguyên tĩnh: ảnh, icon, file public
+    ├── package.json            # Cấu hình npm scripts và dependencies
+    ├── vite.config.js          # Cấu hình Vite cho build/dev server
+    ├── eslint.config.js        # Cấu hình kiểm tra chất lượng mã nguồn frontend
+    ├── index.html              # File HTML gốc để mount ứng dụng React
+    └── README.md               # Hướng dẫn riêng cho phần frontend
+```
