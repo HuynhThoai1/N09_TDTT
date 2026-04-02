@@ -29,3 +29,37 @@ N09_TDTT/
     ├── index.html              # File HTML gốc để mount ứng dụng React
     └── README.md               # Hướng dẫn riêng cho phần frontend
 ```
+
+
+# Hướng dẫn chạy dự án (Dành cho thành viên nhóm)
+
+Để chạy dự án này trên máy cá nhân, các bạn cần mở **2 Terminal (hoặc 2 tab Terminal)** chạy song song: một cái cho Backend và một cái cho Frontend.
+
+## 1. Khởi động Backend (Django)
+Mở Terminal 1 và gõ lần lượt các lệnh sau:
+
+```bash
+cd backend
+
+# Kích hoạt môi trường ảo (Windows)
+source venv/Scripts/activate 
+# Hoặc: venv\Scripts\activate
+
+# Cài đặt thư viện (nếu mới pull code về lần đầu)
+pip install -r requirements.txt
+
+# Chạy server
+python manage.py runserver
+```
+
+## 2. Khởi động frontend (React vite)
+
+```bash
+cd frontend
+
+# Cài đặt thư viện Node (chỉ chạy lần đầu)
+npm install
+
+# Chạy server Frontend
+npm run dev
+```
