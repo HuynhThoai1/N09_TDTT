@@ -16,7 +16,10 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from api import views 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('api/pois/', views.get_all_pois, name='api_get_pois'),
+    path('api/calculate-route/', views.calculate_route, name='api_calculate_route'),
 ]
