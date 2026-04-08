@@ -1,41 +1,95 @@
-from django.shortcuts import render
-
-# Create your views here.
+import os
+from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+
 from tours.models import POI
 from .serializers import POISerializer
 
-# Gắn biển cấm: Chỉ cho khách tới LẤY đồ (GET), cấm GỬI đồ lên (POST)
+# Import bộ não AI 
+from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
+
+engine = RoutingEngine()
+
+# Thiết lập đường dẫn đến các file JSON trong folder data
+BASE_DIR = settings.BASE_DIR
+nodesPath = os.path.join(BASE_DIR, 'data', 'nodes.json')
+edgesPath = os.path.join(BASE_DIR, 'data', 'edges.json')
+poisPath = os.path.join(BASE_DIR, 'data', 'pois.json')
+
+# Nạp dữ liệu vào Engine
+isLoaded = engine.loadMapData(nodesPath, edgesPath, poisPath)
+
+# Khởi tạo bộ sửa lỗi chính tả (Matcher) nếu nạp data thành công
+matcher = None
+if isLoaded:
+    available_nodes = list(engine.graph.nodes())
+    matcher = LocationMatcher(available_nodes)
+    print("AI Engine đã sẵn sàng!")
+else:
+    print("CẢNH BÁO: Không tìm thấy dữ liệu tại folder /data/")
+
+
+# --- CÁC HÀM XỬ LÝ API ---
+
 @api_view(['GET'])
-def get_all_pois(request):
-    # 1. Mở kho, gom toàn bộ điểm thú vị (quán cafe, công viên...) ra
-    danh_sach_diem_den = POI.objects.all()
-    
-    # 2. Đưa cục dữ liệu đó vào máy đóng gói (many=True nghĩa là có nhiều món cùng lúc)
-    may_dong_goi = POISerializer(danh_sach_diem_den, many=True)
-    
-    # 3. Trả hộp JSON hoàn chỉnh ra ngoài cho Frontend vẽ lên bản đồ
-    return Response(may_dong_goi.data)
+def getAllPOIs(request):
+    """
+    API lấy danh sách toàn bộ điểm thú vị để FE hiển thị lên bản đồ.
+    """
+    pois = POI.objects.all()
+    serializer = POISerializer(pois, many=True)
+    return Response(serializer.data)
+
 
 @api_view(['POST'])
-def calculate_route(request):
-    # 1. Nhận thông tin FE gửi lên (Điểm A, Điểm B, Thời gian cho phép đi lạc)
-    data_tu_fe = request.data
+def calculateRoute(request):
+    """
+    API tiếp nhận Điểm A, Điểm B để tính toán đường đi 'chill' nhất.
+    """
+    data = request.data
+    raw_start = data.get('start_location', '')
+    raw_end = data.get('end_location', '')
+    max_time = float(data.get('extra_time', 100.0))
 
-    duong_di_gia_mao = {
+    # 1. Kiểm tra nếu chưa nạp được bản đồ
+    if not isLoaded or not matcher:
+        return Response({"status": "error", "message": "Dữ liệu bản đồ chưa sẵn sàng."}, status=500)
+
+    # 2. Sử dụng Matcher của Tài để chuẩn hóa tên địa điểm (Sửa lỗi chính tả)
+    start_node, start_status = matcher.find_node(raw_start)
+    end_node, end_status = matcher.find_node(raw_end)
+
+    if start_status == "Not Found" or end_status == "Not Found":
+        return Response({
+            "status": "error",
+            "message": f"Không tìm thấy địa điểm: {raw_start if start_status == 'Not Found' else raw_end}"
+        }, status=404)
+
+    # 3. Gọi thuật toán của Tài để tính toán đường đi thật
+    result = engine.calculateRoute(
+        startNode=start_node,
+        endNode=end_node,
+        totalMaxTime=max_time
+    )
+
+    # 4. Trả kết quả về cho Frontend
+    if not result.get('coordinates'):
+        return Response({
+            "status": "error",
+            "message": result.get('route_string', "Không tìm thấy đường đi phù hợp.")
+        }, status=404)
+
+    return Response({
         "status": "success",
-        "message": "Đây là tọa độ giả để team Frontend test vẽ bản đồ nha!",
-        "route_info": {
-            "total_time_minutes": 15,    # Đi hết 15 phút
-            "serendipity_score": 8.5     # Độ chill 8.5 điểm
+        "input_processed": {
+            "start": start_node,
+            "end": end_node,
+            "match_type": f"Start:{start_status}, End:{end_status}"
         },
-        "path_coordinates": [
-            {"lat": 10.779785, "lng": 106.699028}, # Tọa độ Nhà thờ Đức Bà
-            {"lat": 10.776111, "lng": 106.698333}, # Tọa độ Ủy ban Nhân dân
-            {"lat": 10.772500, "lng": 106.698056}  # Tọa độ Chợ Bến Thành
-        ]
-    }
-
-    # Quăng cục JSON giả đó về cho FE
-    return Response(duong_di_gia_mao)
+        "route_info": {
+            "description": result['route_string'],
+            "total_time_allowed": max_time
+        },
+        "path_coordinates": result['coordinates']
+    })

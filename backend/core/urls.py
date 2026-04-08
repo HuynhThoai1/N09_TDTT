@@ -20,6 +20,6 @@ from api import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/pois/', views.get_all_pois, name='api_get_pois'),
-    path('api/calculate-route/', views.calculate_route, name='api_calculate_route'),
+    path('api/pois/', views.getAllPOIs, name='api_get_pois'),
+    path('api/calculate-route/', views.calculateRoute, name='api_calculate_route'),
 ]
