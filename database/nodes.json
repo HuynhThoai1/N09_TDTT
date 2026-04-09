@@ -1,0 +1,22 @@
+[
+  { "id": 1, "name": "Ngã tư Nguyễn Huệ - Lê Lợi", "latitude": 10.775269, "longitude": 106.702528 },
+  { "id": 2, "name": "Ngã tư Nguyễn Huệ - Mạc Thị Bưởi", "latitude": 10.774521, "longitude": 106.703554 },
+  { "id": 3, "name": "Ngã tư Nguyễn Huệ - Ngô Đức Kế", "latitude": 10.773347, "longitude": 106.705128 },
+  { "id": 4, "name": "Ngã tư Nguyễn Huệ - Tôn Đức Thắng", "latitude": 10.772111, "longitude": 106.706541 },
+  { "id": 5, "name": "Ngã tư Đồng Khởi - Lê Lợi", "latitude": 10.776103, "longitude": 106.701705 },
+  { "id": 6, "name": "Ngã tư Đồng Khởi - Mạc Thị Bưởi", "latitude": 10.775369, "longitude": 106.702755 },
+  { "id": 7, "name": "Ngã tư Đồng Khởi - Ngô Đức Kế", "latitude": 10.774169, "longitude": 106.704253 },
+  { "id": 8, "name": "Ngã tư Đồng Khởi - Tôn Đức Thắng", "latitude": 10.772985, "longitude": 106.705888 },
+  { "id": 9, "name": "Ngã tư Pasteur - Lê Lợi", "latitude": 10.773822, "longitude": 106.700595 },
+  { "id": 10, "name": "Ngã tư Pasteur - Huỳnh Thúc Kháng", "latitude": 10.773200, "longitude": 106.701383 },
+  { "id": 11, "name": "Ngã tư Pasteur - Tôn Thất Thiệp", "latitude": 10.772455, "longitude": 106.702111 },
+  { "id": 12, "name": "Ngã tư Nam Kỳ Khởi Nghĩa - Lê Lợi", "latitude": 10.772596, "longitude": 106.699119 },
+  { "id": 13, "name": "Ngã tư Nam Kỳ Khởi Nghĩa - Huỳnh Thúc Kháng", "latitude": 10.771850, "longitude": 106.700055 },
+  { "id": 14, "name": "Ngã tư Lê Thánh Tôn - Đồng Khởi", "latitude": 10.777855, "longitude": 106.700111 },
+  { "id": 15, "name": "Ngã tư Lê Thánh Tôn - Nguyễn Huệ", "latitude": 10.776850, "longitude": 106.701250 },
+  { "id": 16, "name": "Ngã tư Lê Thánh Tôn - Pasteur", "latitude": 10.775550, "longitude": 106.699150 },
+  { "id": 17, "name": "Ngã tư Lý Tự Trọng - Đồng Khởi", "latitude": 10.778550, "longitude": 106.699110 },
+  { "id": 18, "name": "Ngã tư Lý Tự Trọng - Pasteur", "latitude": 10.776250, "longitude": 106.698110 },
+  { "id": 19, "name": "Ngã tư Hai Bà Trưng - Lê Thánh Tôn", "latitude": 10.779150, "longitude": 106.702150 },
+  { "id": 20, "name": "Ngã tư Hai Bà Trưng - Lý Tự Trọng", "latitude": 10.780150, "longitude": 106.701150 }
+]
