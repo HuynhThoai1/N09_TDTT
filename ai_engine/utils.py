@@ -60,9 +60,9 @@ def loadPois(poisFile):
     return loadJsonData(poisFile)
 
 if __name__ == "__main__":
-    NODES_PATH = "data/nodes.json"
-    EDGES_PATH = "data/edges.json"
-    POIS_PATH = "data/pois.json"   
+    NODES_PATH = "../database/nodes.json"
+    EDGES_PATH = "../database/edges.json"
+    POIS_PATH = "../database/pois.json"   
     try:
         routeGraph = buildDirectedGraph(NODES_PATH, EDGES_PATH)
         print(f"Khởi tạo đồ thị thành công! Số đỉnh: {routeGraph.number_of_nodes()}, Số cạnh: {routeGraph.number_of_edges()}")
