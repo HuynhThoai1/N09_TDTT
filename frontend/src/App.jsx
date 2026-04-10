@@ -1,10 +1,19 @@
+import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import MainPage from "./pages/MainPage";
+const router = createBrowserRouter([
+	//Sau này có thêm các trang khác nếu muốn
+	{
+		path: "about",
+		element: <h1>Đây là trang giới thiệu</h1>,
+	},
+	{
+		path: "/",
+		element: <MainPage />,
+	},
+]);
+
 function App() {
-  return (
-    <div>
-      <h1>Dự án Du Lịch Thông Minh - Nhóm 09</h1>
-      <p>Bắt đầu xây dựng giao diện tại đây!</p>
-    </div>
-  )
+	return <RouterProvider router={router}></RouterProvider>;
 }
 
-export default App
+export default App;
