@@ -1,33 +1,100 @@
-import os
+from pathlib import Path
+
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from tours.models import POI
+from tours.models import POI, Node
 from .serializers import POISerializer
 
-# Import bộ não AI 
-from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
+try:
+    from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
+    AI_ENGINE_AVAILABLE = True
+except ModuleNotFoundError:
+    RoutingEngine = None
+    LocationMatcher = None
+    AI_ENGINE_AVAILABLE = False
 
-engine = RoutingEngine()
 
-# Thiết lập đường dẫn đến các file JSON trong folder data
-BASE_DIR = settings.BASE_DIR
-nodesPath = os.path.join(BASE_DIR, 'data', 'nodes.json')
-edgesPath = os.path.join(BASE_DIR, 'data', 'edges.json')
-poisPath = os.path.join(BASE_DIR, 'data', 'pois.json')
+class DemoLocationMatcher:
+    def __init__(self):
+        self.names = list(Node.objects.values_list('name', flat=True))
 
-# Nạp dữ liệu vào Engine
+    def find_node(self, raw_name):
+        query = (raw_name or '').strip()
+        if not query:
+            return '', 'Not Found'
+
+        for name in self.names:
+            if name.lower() == query.lower():
+                return name, 'Exact Match'
+
+        for name in self.names:
+            if query.lower() in name.lower():
+                return name, 'Partial Match'
+
+        return query, 'Not Found'
+
+
+class DemoRoutingEngine:
+    def loadMapData(self, *_args, **_kwargs):
+        return True
+
+    def calculateRoute(self, startNode, endNode, totalMaxTime=100.0):
+        try:
+            start = Node.objects.get(name=startNode)
+            end = Node.objects.get(name=endNode)
+        except Node.DoesNotExist:
+            return {
+                'route_string': 'Khong tim thay node de mo phong tuyen duong.',
+                'coordinates': []
+            }
+
+        return {
+            'route_string': f'Demo route from {startNode} to {endNode} (max {totalMaxTime} minutes).',
+            'coordinates': [
+                [start.latitude, start.longitude],
+                [end.latitude, end.longitude],
+            ]
+        }
+
+
+engine = RoutingEngine() if AI_ENGINE_AVAILABLE else DemoRoutingEngine()
+
+BASE_DIR = Path(settings.BASE_DIR)
+PROJECT_ROOT = BASE_DIR.parent
+DATA_ROOT_CANDIDATES = [
+    BASE_DIR / 'data',
+    PROJECT_ROOT / 'database',
+    PROJECT_ROOT / 'data',
+]
+
+
+def _resolve_data_file(filename):
+    for folder in DATA_ROOT_CANDIDATES:
+        candidate = folder / filename
+        if candidate.exists():
+            return str(candidate)
+    return str((BASE_DIR / 'data') / filename)
+
+
+nodesPath = _resolve_data_file('nodes.json')
+edgesPath = _resolve_data_file('edges.json')
+poisPath = _resolve_data_file('pois.json')
+
 isLoaded = engine.loadMapData(nodesPath, edgesPath, poisPath)
 
-# Khởi tạo bộ sửa lỗi chính tả (Matcher) nếu nạp data thành công
 matcher = None
 if isLoaded:
-    available_nodes = list(engine.graph.nodes())
-    matcher = LocationMatcher(available_nodes)
-    print("AI Engine đã sẵn sàng!")
+    if AI_ENGINE_AVAILABLE:
+        available_nodes = list(engine.graph.nodes())
+        matcher = LocationMatcher(available_nodes)
+        print('AI Engine da san sang!')
+    else:
+        matcher = DemoLocationMatcher()
+        print('Demo mode da san sang (khong can ai_engine).')
 else:
-    print("CẢNH BÁO: Không tìm thấy dữ liệu tại folder /data/")
+    print('CANH BAO: Khong tim thay du lieu ban do.')
 
 
 # --- CÁC HÀM XỬ LÝ API ---
