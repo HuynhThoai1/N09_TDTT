@@ -4,6 +4,7 @@ import {
 	Marker,
 	Popup,
 	Polyline,
+	CircleMarker,
 	useMap,
 	ZoomControl,
 } from "react-leaflet";
@@ -24,10 +25,27 @@ let DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const createNumberedMarkerIcon = (index) =>
+const createNumberedMarkerIcon = (index, isLast = false) =>
 	L.divIcon({
 		className: "numbered-marker-wrapper",
-		html: `<div style="width:28px;height:28px;border-radius:9999px;background:#2563eb;border:2px solid #bfdbfe;color:#eff6ff;font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(37,99,235,0.45);">${index}</div>`,
+		html: `<div style="
+      width:28px;
+      height:28px;
+      border-radius:9999px;
+      background:${isLast ? "#dc2626" : "#2563eb"};
+      border:2px solid ${isLast ? "#fecaca" : "#bfdbfe"};
+      color:${isLast ? "#fff1f2" : "#eff6ff"};
+      font-weight:700;
+      font-size:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      box-shadow:0 3px 10px ${
+				isLast
+					? "rgba(220,38,38,0.45)"
+					: "rgba(37,99,235,0.45)"
+			};
+    ">${index}</div>`,
 		iconSize: [28, 28],
 		iconAnchor: [14, 14],
 		popupAnchor: [0, -14],
@@ -38,6 +56,20 @@ const HCMC_BOUNDS = [
 	[10.3731, 106.3533],
 	[11.1603, 107.0305],
 ];
+const MAP_STYLES = {
+	default: {
+		label: "Mặc định",
+		url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+		attribution:
+			'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+	},
+	satellite: {
+		label: "Vệ tinh",
+		url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+		attribution:
+			'Tiles &copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+	},
+};
 
 function MapCamera({ focusedLocation, linePositions, recenterKey }) {
 	const map = useMap();
@@ -88,7 +120,7 @@ export default function MapView({
 	recenterKey = 0,
 }) {
 	const [routePanelOpen, setRoutePanelOpen] = useState(true);
-
+	const [mapStyle, setMapStyle] = useState("default");
 	const ordered = useMemo(() => {
 		const waypoints = route?.waypoints ?? [];
 		if (!waypoints.length) return [];
@@ -106,6 +138,25 @@ export default function MapView({
 
 	return (
 		<div className="w-full h-full z-0 relative">
+			<div className="absolute top-3 left-3 z-[1001] rounded-xl border border-slate-700 bg-slate-900/85 backdrop-blur px-2 py-2 flex gap-2">
+				{Object.entries(MAP_STYLES).map(([key, cfg]) => {
+					const active = mapStyle === key;
+					return (
+						<button
+							key={key}
+							type="button"
+							onClick={() => setMapStyle(key)}
+							className={`px-3 py-1.5 text-xs rounded-md transition ${
+								active
+									? "bg-blue-600 text-white"
+									: "bg-slate-800 text-slate-300 hover:bg-slate-700"
+							}`}
+						>
+							{cfg.label}
+						</button>
+					);
+				})}
+			</div>
 			<MapContainer
 				center={HCMC_CENTER}
 				zoom={14}
@@ -118,8 +169,8 @@ export default function MapView({
 				<ZoomControl position="bottomright" />
 
 				<TileLayer
-					attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-					url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+					attribution={MAP_STYLES[mapStyle].attribution}
+					url={MAP_STYLES[mapStyle].url}
 				/>
 
 				<MapCamera
@@ -129,29 +180,49 @@ export default function MapView({
 				/>
 
 				{linePositions.length >= 2 && (
-					<Polyline
-						positions={linePositions}
-						pathOptions={{
-							color: "#2563eb",
-							weight: 5,
-							opacity: 0.85,
-						}}
-					/>
+					<>
+						{/* viền dưới tạo hiệu ứng nổi */}
+						<Polyline
+							positions={linePositions}
+							pathOptions={{
+								color: "#ffffff",
+								weight: 10,
+								opacity: 0.9,
+								lineCap: "round",
+								lineJoin: "round",
+							}}
+						/>
+						{/* route chính */}
+						<Polyline
+							positions={linePositions}
+							pathOptions={{
+								color: "#2563eb",
+								weight: 6,
+								opacity: 1,
+								lineCap: "round",
+								lineJoin: "round",
+							}}
+						/>
+					</>
 				)}
 
-				{ordered.map((w, i) => (
-					<Marker
-						key={`${w.id ?? w.name}-${i}`}
-						position={[w.lat, w.lng]}
-						icon={createNumberedMarkerIcon(i + 1)}
-					>
-						<Popup autoPan={false}>
-							<div className="text-sm font-medium">
-								{i + 1}. {w.name}
-							</div>
-						</Popup>
-					</Marker>
-				))}
+				{ordered.map((w, i) => {
+  					const isLast = i === ordered.length - 1;
+ 					return (
+    				<Marker
+      					key={`${w.id ?? w.name}-${i}`}
+      					position={[w.lat, w.lng]}
+      					icon={createNumberedMarkerIcon(i + 1, isLast)}
+    				>
+      					<Popup autoPan={false}>
+        					<div className="text-sm font-medium">
+          						{i + 1}. {w.name} {isLast ? "(Điểm đến cuối)" : ""}
+        					</div>
+      					</Popup>
+    				</Marker>
+  					);
+				})}
+				
 
 				{!route && focusedLocation && (
 					<Marker

@@ -264,133 +264,88 @@ export default function Sidebar({
 									)}
 								</div>
 
-								{stops.length > 0 && (
-									<div className="space-y-3 p-4 bg-slate-900/50 rounded-xl border border-slate-800">
-										<Label className="text-slate-400 text-xs uppercase tracking-wider">
-											Danh sách điểm dừng
-										</Label>
-										<div className="space-y-2">
-											{stops.map((s, i) => (
-												<div
-													key={`${s.id}-${i}`}
-													className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-colors group ${
-														draggingIndex === i
-															? "ring-1 ring-blue-500/70 bg-slate-800"
-															: "hover:bg-slate-800"
+								{stops.map((s, i) => {
+									const isLast = i === stops.length - 1;
+
+									return (
+										<div
+											key={`${s.id}-${i}`}
+											className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-colors group ${
+												draggingIndex === i
+													? "ring-1 ring-blue-500/70 bg-slate-800"
+													: "hover:bg-slate-800"
+											}`}
+											onDragOver={(e) => {
+												e.preventDefault();
+											}}
+											onDrop={(e) => {
+												e.preventDefault();
+												const from = Number(e.dataTransfer.getData("text/plain"));
+												moveStop(from, i);
+												setDraggingIndex(null);
+												}}
+										>
+											<div className="flex items-center gap-2 min-w-0">
+												<button
+													type="button"
+													draggable
+													title={isLast ? "Điểm đến cuối cùng" : "Kéo thả để đổi thứ tự"}
+													aria-label={
+														isLast
+															? `Điểm đến cuối cùng ${s.name}`
+															: `Kéo thả để đổi thứ tự điểm dừng ${i + 1}`
+													}
+													onDragStart={(e) => {
+														e.dataTransfer.setData("text/plain", String(i));
+														e.dataTransfer.effectAllowed = "move";
+														setDraggingIndex(i);
+													}}
+													onDragEnd={() => setDraggingIndex(null)}
+													className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 ${
+														isLast
+															? "bg-red-500 text-white ring-2 ring-red-300/60"
+															: "bg-blue-500/20 text-blue-400 group-hover:bg-blue-500 group-hover:text-white cursor-grab active:cursor-grabbing"
 													}`}
-													onDragOver={(e) => {
-														e.preventDefault();
-													}}
-													onDrop={(e) => {
-														e.preventDefault();
-														const from = Number(
-															e.dataTransfer.getData(
-																"text/plain",
-															),
-														);
-														moveStop(from, i);
-														setDraggingIndex(null);
-													}}
 												>
-													<div className="flex items-center gap-2 min-w-0">
-														<button
-															type="button"
-															draggable
-															title="Kéo thả để đổi thứ tự"
-															aria-label={`Kéo thả để đổi thứ tự điểm dừng ${i + 1}`}
-															onDragStart={(
-																e,
-															) => {
-																e.dataTransfer.setData(
-																	"text/plain",
-																	String(i),
-																);
-																e.dataTransfer.effectAllowed =
-																	"move";
-																setDraggingIndex(
-																	i,
-																);
-															}}
-															onDragEnd={() =>
-																setDraggingIndex(
-																	null,
-																)
-															}
-															className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold group-hover:bg-blue-500 group-hover:text-white transition-all shrink-0 cursor-grab active:cursor-grabbing"
-														>
-															{i + 1}
-														</button>
-														<GripVertical
-															size={14}
-															className="text-slate-500 shrink-0"
-														/>
-														<span className="truncate">
-															{s.name}
-														</span>
-													</div>
-													<div className="flex items-center gap-1 shrink-0">
-														<button
-															type="button"
-															title="Vị trí"
-															aria-label={`Tập trung ${s.name} trên bản đồ`}
-															className="p-1 text-slate-500 hover:text-blue-300"
-															onClick={() =>
-																onFocusLocation(
-																	s,
-																)
-															}
-														>
-															<LocateFixed
-																size={14}
-															/>
-														</button>
-														<button
-															type="button"
-															title="Xem chi tiết"
-															aria-label={`Xem chi tiết ${s.name}`}
-															className="p-1 text-slate-500 hover:text-amber-300"
-															onClick={() =>
-																openDetail(s)
-															}
-														>
-															<Info size={14} />
-														</button>
-														<button
-															type="button"
-															title="Xóa"
-															aria-label={`Xóa ${s.name}`}
-															className="p-1 text-slate-500 hover:text-red-400"
-															onClick={() =>
-																removeStop(i)
-															}
-														>
-															<Trash2 size={14} />
-														</button>
-													</div>
-												</div>
-											))}
+													{i + 1}
+												</button>
+
+												<GripVertical size={14} className="text-slate-500 shrink-0" />
+												<span className="truncate">{s.name}</span>
+
+												{isLast && (
+													<span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-red-500/20 text-red-300 border border-red-400/30">
+														Điểm đến
+													</span>
+												)}
+											</div>
 										</div>
-									</div>
-								)}
+									);
+								})}
 
 								<div className="space-y-2">
 									<Label
 										htmlFor="goal-text"
 										className="text-slate-400 text-xs uppercase tracking-wider"
 									>
-										Kế hoạch bạn muồn thực hiện
+										Kế hoạch bạn muốn thực hiện
 									</Label>
+
 									<textarea
 										id="goal-text"
-										value={goalText}
-										rows={2}
-										onChange={(e) =>
-											setGoalText(e.target.value)
-										}
-										placeholder="VD: Muốn lộ trình..."
-										className="w-full max-h-[3.5rem] rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm leading-5 text-slate-100 placeholder:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 resize-none overflow-y-auto"
+										name="goalText"
+										value={goalText ?? ""}
+										rows={3}
+										maxLength={300}
+										onChange={(e) => setGoalText(e.target.value)}
+										placeholder="VD: Muốn lộ trình tham quan quận 1 trong 1 buổi chiều..."
+										className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm leading-5 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[84px]"
 									/>
+									<p className="text-[11px] text-slate-500 text-right">
+									{(goalText ?? "").length}/300
+									</p>
 								</div>
+
 
 								<div className="mt-auto pt-2 pb-1">
 									<Button
