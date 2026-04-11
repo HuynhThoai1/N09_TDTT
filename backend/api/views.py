@@ -1,11 +1,15 @@
+import sys
 from pathlib import Path
-
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
 from tours.models import POI, Node
 from .serializers import POISerializer
+
+BASE_DIR = Path(settings.BASE_DIR)
+PROJECT_ROOT = BASE_DIR.parent
+sys.path.append(str(PROJECT_ROOT)) # Ép Python nhìn ra ngoài thư mục N09_TDTT
 
 try:
     from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
