@@ -16,10 +16,15 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from django.conf import settings
+from django.conf.urls.static import static
 from api import views 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/pois/', views.getAllPOIs, name='api_get_pois'),
-    path('api/calculate-route/', views.calculateRoute, name='api_calculate_route'),
+    path('api/search-locations/', views.searchLocations, name='api_search_locations'),
+    path('api/smart-itinerary/', views.smartItinerary, name='api_smart_itinerary'),
 ]
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

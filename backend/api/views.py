@@ -4,163 +4,113 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from tours.models import POI, Node
+from .models import PointOfInterest
 from .serializers import POISerializer
+from .semantic_search import find_related_pois
+from .itinerary_optimizer import build_top3_routes
 
-BASE_DIR = Path(settings.BASE_DIR)
-PROJECT_ROOT = BASE_DIR.parent
-sys.path.append(str(PROJECT_ROOT)) # Ép Python nhìn ra ngoài thư mục N09_TDTT
+# --- HELPER FUNCTIONS ---
 
-try:
-    from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
-    AI_ENGINE_AVAILABLE = True
-except ModuleNotFoundError:
-    RoutingEngine = None
-    LocationMatcher = None
-    AI_ENGINE_AVAILABLE = False
-
-
-class DemoLocationMatcher:
-    def __init__(self):
-        self.names = list(Node.objects.values_list('name', flat=True))
-
-    def find_node(self, raw_name):
-        query = (raw_name or '').strip()
-        if not query:
-            return '', 'Not Found'
-
-        for name in self.names:
-            if name.lower() == query.lower():
-                return name, 'Exact Match'
-
-        for name in self.names:
-            if query.lower() in name.lower():
-                return name, 'Partial Match'
-
-        return query, 'Not Found'
+def _fix_image_path(request, p):
+    """Sửa lỗi đường dẫn ảnh (assets -> media) và đảm bảo có domain."""
+    if not p: return ""
+    base_url = request.build_absolute_uri('/')[:-1]
+    # Chuyển assets sang media và xóa domain dư thừa nếu có
+    clean_p = str(p).replace("assets/images", "media").replace("http://localhost:8000/", "").lstrip('/')
+    return f"{base_url}/{clean_p}"
 
 
-class DemoRoutingEngine:
-    def loadMapData(self, *_args, **_kwargs):
-        return True
-
-    def calculateRoute(self, startNode, endNode, totalMaxTime=100.0):
-        try:
-            start = Node.objects.get(name=startNode)
-            end = Node.objects.get(name=endNode)
-        except Node.DoesNotExist:
-            return {
-                'route_string': 'Khong tim thay node de mo phong tuyen duong.',
-                'coordinates': []
-            }
-
-        return {
-            'route_string': f'Demo route from {startNode} to {endNode} (max {totalMaxTime} minutes).',
-            'coordinates': [
-                [start.latitude, start.longitude],
-                [end.latitude, end.longitude],
-            ]
-        }
-
-
-engine = RoutingEngine() if AI_ENGINE_AVAILABLE else DemoRoutingEngine()
-
-BASE_DIR = Path(settings.BASE_DIR)
-PROJECT_ROOT = BASE_DIR.parent
-DATA_ROOT_CANDIDATES = [
-    BASE_DIR / 'data',
-    PROJECT_ROOT / 'database',
-    PROJECT_ROOT / 'data',
-]
-
-
-def _resolve_data_file(filename):
-    for folder in DATA_ROOT_CANDIDATES:
-        candidate = folder / filename
-        if candidate.exists():
-            return str(candidate)
-    return str((BASE_DIR / 'data') / filename)
-
-
-nodesPath = _resolve_data_file('nodes.json')
-edgesPath = _resolve_data_file('edges.json')
-poisPath = _resolve_data_file('pois.json')
-
-isLoaded = engine.loadMapData(nodesPath, edgesPath, poisPath)
-
-matcher = None
-if isLoaded:
-    if AI_ENGINE_AVAILABLE:
-        available_nodes = list(engine.graph.nodes())
-        matcher = LocationMatcher(available_nodes)
-        print('AI Engine da san sang!')
-    else:
-        matcher = DemoLocationMatcher()
-        print('Demo mode da san sang (khong can ai_engine).')
-else:
-    print('CANH BAO: Khong tim thay du lieu ban do.')
-
-
-# --- CÁC HÀM XỬ LÝ API ---
+# --- API VIEWS ---
 
 @api_view(['GET'])
-def getAllPOIs(request):
+def searchLocations(request):
     """
-    API lấy danh sách toàn bộ điểm thú vị để FE hiển thị lên bản đồ.
+    API tìm kiếm địa điểm từ danh sách POIs dựa trên query 'name'.
+    Hỗ trợ debounce từ Frontend.
     """
-    pois = POI.objects.all()
-    serializer = POISerializer(pois, many=True)
-    return Response(serializer.data)
+    query = request.GET.get('name', '').strip()
+    if not query: return Response([])
+
+    locations = PointOfInterest.objects.filter(name__icontains=query)[:15]
+    results = []
+
+    for loc in locations:
+        results.append({
+            "id": loc.poi_id or str(loc.id),
+            "poi_id": loc.poi_id,
+            "name": loc.name,
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "category": loc.category or "Địa danh",
+            "image": _fix_image_path(request, loc.image),
+            "image_list": [_fix_image_path(request, img) for img in loc.image_list if img],
+            "description": loc.description,
+            "address": loc.address or "Quận 1, TP. Hồ Chí Minh"
+        })
+    return Response(results)
 
 
 @api_view(['POST'])
-def calculateRoute(request):
+def smartItinerary(request):
     """
-    API tiếp nhận Điểm A, Điểm B để tính toán đường đi 'chill' nhất.
+    API chính của hệ thống AI Smart Itinerary sử dụng Giải thuật Di truyền.
     """
     data = request.data
-    raw_start = data.get('start_location', '')
-    raw_end = data.get('end_location', '')
-    max_time = float(data.get('extra_time', 100.0))
+    raw_stops = data.get("stops", [])
+    prompt_text = data.get("prompt_text", "").strip()
 
-    # 1. Kiểm tra nếu chưa nạp được bản đồ
-    if not isLoaded or not matcher:
-        return Response({"status": "error", "message": "Dữ liệu bản đồ chưa sẵn sàng."}, status=500)
+    if len(raw_stops) < 1:
+        return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
 
-    # 2. Sử dụng Matcher của Tài để chuẩn hóa tên địa điểm (Sửa lỗi chính tả)
-    start_node, start_status = matcher.find_node(raw_start)
-    end_node, end_status = matcher.find_node(raw_end)
+    # --- Bước 0: Làm giàu dữ liệu Stops từ Database ---
+    enriched_stops = []
+    for s in raw_stops:
+        sid = s.get("poi_id") or s.get("id")
+        try:
+            loc = PointOfInterest.objects.filter(poi_id=sid).first() or PointOfInterest.objects.filter(id=sid).first()
+            if loc:
+                enriched_stops.append({
+                    "id": loc.poi_id or str(loc.id),
+                    "poi_id": loc.poi_id,
+                    "name": loc.name,
+                    "latitude": loc.latitude,
+                    "longitude": loc.longitude,
+                    "image": loc.image,
+                    "image_list": loc.image_list,
+                    "description": loc.description,
+                    "category": loc.category,
+                    "address": loc.address
+                })
+            else:
+                enriched_stops.append(s)
+        except:
+            enriched_stops.append(s)
 
-    if start_status == "Not Found" or end_status == "Not Found":
-        return Response({
-            "status": "error",
-            "message": f"Không tìm thấy địa điểm: {raw_start if start_status == 'Not Found' else raw_end}"
-        }, status=404)
+    # --- Bước 1: Tìm kiếm ngữ nghĩa (Semantic Search) ---
+    bonus_candidates = []
+    if prompt_text:
+        bonus_candidates = find_related_pois(
+            prompt_text=prompt_text,
+            mandatory_stops=enriched_stops,
+            top_k=15,
+        )
 
-    # 3. Gọi thuật toán của Tài để tính toán đường đi thật
-    result = engine.calculateRoute(
-        startNode=start_node,
-        endNode=end_node,
-        totalMaxTime=max_time
+    # --- Bước 2: Tối ưu hóa lộ trình (AI Genetic Algorithm) ---
+    routes = build_top3_routes(
+        mandatory_stops=enriched_stops,
+        bonus_candidates=bonus_candidates,
+        prompt_text=prompt_text
     )
 
-    # 4. Trả kết quả về cho Frontend
-    if not result.get('coordinates'):
-        return Response({
-            "status": "error",
-            "message": result.get('route_string', "Không tìm thấy đường đi phù hợp.")
-        }, status=404)
+    # --- Bước 3: Fix path ảnh ---
+    for route in routes:
+        for wp in route.get("waypoints", []):
+            wp["image"] = _fix_image_path(request, wp.get("image"))
+            wp["image_list"] = [_fix_image_path(request, img) for img in wp.get("image_list", []) if img]
 
     return Response({
         "status": "success",
-        "input_processed": {
-            "start": start_node,
-            "end": end_node,
-            "match_type": f"Start:{start_status}, End:{end_status}"
-        },
-        "route_info": {
-            "description": result['route_string'],
-            "total_time_allowed": max_time
-        },
-        "path_coordinates": result['coordinates']
+        "prompt_text": prompt_text,
+        "bonus_candidates": bonus_candidates[:5], 
+        "routes": routes,
     })
