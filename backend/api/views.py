@@ -15,12 +15,11 @@ try:
 except ImportError:
     POISerializer = None
 
-# --- [VŨ THÊM] Import hàm sinh vector từ file ai_services.py ---
 from .ai_services import generate_vector
 
 BASE_DIR = Path(settings.BASE_DIR)
 PROJECT_ROOT = BASE_DIR.parent
-sys.path.append(str(PROJECT_ROOT)) # Ép Python nhìn ra ngoài thư mục N09_TDTT
+sys.path.append(str(PROJECT_ROOT))
 
 try:
     from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
@@ -186,7 +185,7 @@ def calculateRoute(request):
         "path_coordinates": result['coordinates']
     })
 
-# --- [VŨ THÊM] API Nhúng văn bản thành Vector ---
+
 @api_view(['POST'])
 def get_text_embedding(request):
     """

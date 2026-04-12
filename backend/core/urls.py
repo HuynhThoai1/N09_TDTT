@@ -22,7 +22,5 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/pois/', views.getAllPOIs, name='api_get_pois'),
     path('api/calculate-route/', views.calculateRoute, name='api_calculate_route'),
-    
-    # Lắp thêm API Embedding mới của Vũ vào đây:
     path('api/text-embedding/', views.get_text_embedding, name='api_text_embedding'),
 ]
