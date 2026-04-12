@@ -23,4 +23,5 @@ urlpatterns = [
     path('api/pois/', views.getAllPOIs, name='api_get_pois'),
     path('api/calculate-route/', views.calculateRoute, name='api_calculate_route'),
     path('api/text-embedding/', views.get_text_embedding, name='api_text_embedding'),
+    path('api/image-embedding/', views.get_image_embedding, name='api_image_embedding'),
 ]

@@ -7,3 +7,4 @@ django-cors-headers
 networkx
 sentence-transformers
 torch
+Pillow

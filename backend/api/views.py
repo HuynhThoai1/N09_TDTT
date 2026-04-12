@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 from django.conf import settings
 from rest_framework.decorators import api_view
@@ -15,7 +16,7 @@ try:
 except ImportError:
     POISerializer = None
 
-from .ai_services import generate_vector
+from .ai_services import generate_vector, generate_image_vector
 
 BASE_DIR = Path(settings.BASE_DIR)
 PROJECT_ROOT = BASE_DIR.parent
@@ -90,6 +91,13 @@ def _resolve_data_file(filename):
         if candidate.exists():
             return str(candidate)
     return str((BASE_DIR / 'data') / filename)
+
+
+def _resolve_output_file(filename):
+    for folder in DATA_ROOT_CANDIDATES:
+        if folder.exists():
+            return folder / filename
+    return PROJECT_ROOT / 'database' / filename
 
 
 nodesPath = _resolve_data_file('nodes.json')
@@ -211,6 +219,66 @@ def get_text_embedding(request):
             'text': text,
             'dimensions': len(vector),
             'embedding': vector,
+        },
+        status=200,
+    )
+
+
+@api_view(['POST'])
+def get_image_embedding(request):
+    """
+    API chuyển đổi ảnh (upload file) thành Vector (embedding) và lưu vào JSON.
+    """
+    imageFile = request.FILES.get('image')
+    if imageFile is None:
+        return Response(
+            {'status': 'error', 'message': 'Vui long upload file anh qua truong "image".'},
+            status=400,
+        )
+
+    try:
+        imageBytes = imageFile.read()
+        vector = generate_image_vector(imageBytes)
+    except ValueError as exc:
+        return Response({'status': 'error', 'message': str(exc)}, status=400)
+    except RuntimeError as exc:
+        return Response({'status': 'error', 'message': str(exc)}, status=503)
+    except Exception as exc:
+        return Response({'status': 'error', 'message': str(exc)}, status=500)
+
+    outputPath = _resolve_output_file('image_vectors.json')
+    outputPath.parent.mkdir(parents=True, exist_ok=True)
+
+    record = {
+        'id': str(request.data.get('id', '')).strip() or imageFile.name,
+        'filename': imageFile.name,
+        'content_type': imageFile.content_type,
+        'size': imageFile.size,
+        'dimensions': len(vector),
+        'embedding': vector,
+    }
+
+    existing_records = []
+    if outputPath.exists():
+        try:
+            with outputPath.open('r', encoding='utf-8') as f:
+                existing_records = json.load(f)
+            if not isinstance(existing_records, list):
+                existing_records = []
+        except Exception:
+            existing_records = []
+
+    existing_records.append(record)
+    with outputPath.open('w', encoding='utf-8') as f:
+        json.dump(existing_records, f, ensure_ascii=False, indent=2)
+
+    return Response(
+        {
+            'status': 'success',
+            'saved_to': str(outputPath),
+            'id': record['id'],
+            'dimensions': record['dimensions'],
+            'embedding': record['embedding'],
         },
         status=200,
     )
