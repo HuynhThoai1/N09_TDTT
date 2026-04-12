@@ -4,12 +4,22 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from tours.models import POI, Node
-from .serializers import POISerializer
+try:
+    from tours.models import POI, Node
+except ImportError:
+    POI = None
+    Node = None
+
+try:
+    from .serializers import POISerializer
+except ImportError:
+    POISerializer = None
+
+from .ai_services import generate_vector
 
 BASE_DIR = Path(settings.BASE_DIR)
 PROJECT_ROOT = BASE_DIR.parent
-sys.path.append(str(PROJECT_ROOT)) # Ép Python nhìn ra ngoài thư mục N09_TDTT
+sys.path.append(str(PROJECT_ROOT))
 
 try:
     from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
@@ -22,7 +32,7 @@ except ModuleNotFoundError:
 
 class DemoLocationMatcher:
     def __init__(self):
-        self.names = list(Node.objects.values_list('name', flat=True))
+        self.names = list(Node.objects.values_list('name', flat=True)) if Node else []
 
     def find_node(self, raw_name):
         query = (raw_name or '').strip()
@@ -108,6 +118,9 @@ def getAllPOIs(request):
     """
     API lấy danh sách toàn bộ điểm thú vị để FE hiển thị lên bản đồ.
     """
+    if POI is None or POISerializer is None:
+        return Response({'status': 'error', 'message': 'POI API is not available.'}, status=503)
+
     pois = POI.objects.all()
     serializer = POISerializer(pois, many=True)
     return Response(serializer.data)
@@ -118,10 +131,17 @@ def calculateRoute(request):
     """
     API tiếp nhận Điểm A, Điểm B để tính toán đường đi 'chill' nhất.
     """
+    if Node is None:
+        return Response({'status': 'error', 'message': 'Route API is not available.'}, status=503)
+
     data = request.data
     raw_start = data.get('start_location', '')
     raw_end = data.get('end_location', '')
-    max_time = float(data.get('extra_time', 100.0))
+    
+    try:
+        max_time = float(data.get('extra_time', 100.0))
+    except (ValueError, TypeError):
+        return Response({'status': 'error', 'message': 'Tham số extra_time không hợp lệ (cần định dạng số).'}, status=400)
 
     # 1. Kiểm tra nếu chưa nạp được bản đồ
     if not isLoaded or not matcher:
@@ -164,3 +184,33 @@ def calculateRoute(request):
         },
         "path_coordinates": result['coordinates']
     })
+
+
+@api_view(['POST'])
+def get_text_embedding(request):
+    """
+    API chuyển đổi văn bản (text) thành Vector (embedding).
+    """
+    text = str(request.data.get('text', '')).strip()
+    if not text:
+        return Response(
+            {'status': 'error', 'message': 'Vui long cung cap truong "text".'},
+            status=400,
+        )
+
+    try:
+        vector = generate_vector(text)
+    except RuntimeError as exc:
+        return Response({'status': 'error', 'message': str(exc)}, status=503)
+    except Exception as exc:
+        return Response({'status': 'error', 'message': str(exc)}, status=500)
+
+    return Response(
+        {
+            'status': 'success',
+            'text': text,
+            'dimensions': len(vector),
+            'embedding': vector,
+        },
+        status=200,
+    )
