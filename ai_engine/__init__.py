@@ -18,7 +18,7 @@
 # Import các thành phần cốt lõi từ các file con trong cùng thư mục
 from .RoutingEngine import RoutingEngine
 from .algorithms import findMultiStopRoute, findConstrainedPath, calculatePathMetrics
-from .utils import loadJsonFile, buildDirectedGraph
+from .utils import loadJsonData, buildDirectedGraph
 
 """!
 @brief Danh sách các Class và Hàm được phép export ra ngoài.
@@ -31,6 +31,6 @@ __all__ = [
     'findMultiStopRoute',
     'findConstrainedPath',
     'calculatePathMetrics',
-    'loadJsonFile',
+    'loadJsonData',
     'buildDirectedGraph'
 ]

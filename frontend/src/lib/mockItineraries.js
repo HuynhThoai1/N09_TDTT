@@ -56,7 +56,7 @@ export function buildMockItinerarySuggestions(stops, goalText) {
 			const merged = [...stops.map((s) => ({ ...s })), ...waypoints];
 			const seen = new Set();
 			waypoints = merged.filter((w) => {
-				const k = w.id ?? `${w.lat},${w.lng}`;
+				const k = w.id ?? `${w.latitude},${w.longitude}`;
 				if (seen.has(k)) return false;
 				seen.add(k);
 				return true;
@@ -84,7 +84,7 @@ export function orderWaypointsShortest(waypoints) {
 		let bestD = Infinity;
 		for (let i = 0; i < rest.length; i++) {
 			const p = rest[i];
-			const d = (p.lat - last.lat) ** 2 + (p.lng - last.lng) ** 2;
+			const d = (p.latitude - last.latitude) ** 2 + (p.longitude - last.longitude) ** 2;
 			if (d < bestD) {
 				bestD = d;
 				bestI = i;

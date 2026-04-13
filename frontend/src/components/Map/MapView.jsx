@@ -89,24 +89,35 @@ function MapCamera({ focusedLocation, linePositions, recenterKey }) {
 		}
 	}, [recenterKey, linePositions, map]);
 
+	// Camera logic toi uu: Chi bay den khi thuc su can thiet (co focus hoac thay doi hanh trinh lon)
 	useEffect(() => {
-		const hasLine = linePositions.length >= 2;
 		if (focusedLocation) {
-			map.flyTo([focusedLocation.lat, focusedLocation.lng], 17, {
+			map.flyTo([focusedLocation.latitude, focusedLocation.longitude], 17, {
 				animate: true,
-				duration: 0.85,
+				duration: 0.8,
 			});
 			return;
 		}
+
+		// Tu dong fit bounds chi khi logic lo trinh thay doi hoac bam nut recenter
+		const hasLine = linePositions.length >= 2;
 		if (hasLine) {
 			const latlngs = linePositions.map((p) => L.latLng(p[0], p[1]));
-			map.fitBounds(L.latLngBounds(latlngs), {
-				padding: [52, 52],
-				maxZoom: 16,
-				animate: true,
-			});
+			const bounds = L.latLngBounds(latlngs);
+			
+			// Kiem tra xem bounds hien tai da bao phu het linePositions chua, neu roi thi thoi (tranh rung lac)
+			if (!map.getBounds().contains(bounds) || recenterKey !== prevRecenterKey.current) {
+				map.fitBounds(bounds, {
+					padding: [50, 50],
+					maxZoom: 16,
+					animate: true,
+					duration: 0.6
+				});
+			}
 		}
-	}, [focusedLocation, linePositions, map]);
+		
+		prevRecenterKey.current = recenterKey;
+	}, [focusedLocation, linePositions, map, recenterKey]);
 
 	return null;
 }
@@ -129,10 +140,14 @@ export default function MapView({
 			: [...waypoints];
 	}, [route, shortestPath]);
 
-	const linePositions = useMemo(
-		() => ordered.map((w) => [w.lat, w.lng]),
-		[ordered],
-	);
+	const linePositions = useMemo(() => {
+		// Neu route co du lieu polyline thuc te tu OSRM, dung no de ve duong bam theo mat duong
+		if (route?.polyline && route.polyline.length >= 2) {
+			return route.polyline;
+		}
+		// Neu khong, nối thang cac diem dung (Straight lines)
+		return ordered.map((w) => [w.latitude, w.longitude]);
+	}, [ordered, route]);
 
 	const lineForCamera = route ? linePositions : [];
 
@@ -181,26 +196,44 @@ export default function MapView({
 
 				{linePositions.length >= 2 && (
 					<>
-						{/* viền dưới tạo hiệu ứng nổi */}
+						{/* Lớp 1: Viền bóng (Shadow/Outline) */}
 						<Polyline
 							positions={linePositions}
 							pathOptions={{
 								color: "#ffffff",
-								weight: 10,
-								opacity: 0.9,
+								weight: 12,
+								opacity: 0.4,
 								lineCap: "round",
 								lineJoin: "round",
 							}}
 						/>
-						{/* route chính */}
+						{/* Lớp 2: Lộ trình chính (Solid Line) */}
 						<Polyline
 							positions={linePositions}
 							pathOptions={{
-								color: "#2563eb",
+								color: "#3b82f6",
 								weight: 6,
 								opacity: 1,
 								lineCap: "round",
 								lineJoin: "round",
+							}}
+						/>
+						{/* Lớp 3: Hiệu ứng chuyển động chỉ hướng (Animated Flow) */}
+						<Polyline
+							positions={linePositions}
+							eventHandlers={{
+								add: (e) => {
+									const el = e.target.getElement();
+									if (el) el.classList.add("animate-route-flow");
+								},
+							}}
+							pathOptions={{
+								color: "#ffffff",
+								weight: 2,
+								opacity: 0.8,
+								lineCap: "round",
+								lineJoin: "round",
+								dashArray: "10, 20",
 							}}
 						/>
 					</>
@@ -211,7 +244,7 @@ export default function MapView({
  					return (
     				<Marker
       					key={`${w.id ?? w.name}-${i}`}
-      					position={[w.lat, w.lng]}
+      					position={[w.latitude, w.longitude]}
       					icon={createNumberedMarkerIcon(i + 1, isLast)}
     				>
       					<Popup autoPan={false}>
@@ -226,7 +259,7 @@ export default function MapView({
 
 				{!route && focusedLocation && (
 					<Marker
-						position={[focusedLocation.lat, focusedLocation.lng]}
+						position={[focusedLocation.latitude, focusedLocation.longitude]}
 					>
 						<Popup autoPan={false}>{focusedLocation.name}</Popup>
 					</Marker>
@@ -286,19 +319,6 @@ export default function MapView({
 							</div>
 						</div>
 
-						<label className="flex items-center gap-2 px-4 py-3 border-b border-slate-800 cursor-pointer select-none hover:bg-slate-800/40">
-							<input
-								type="checkbox"
-								className="rounded border-slate-600"
-								checked={shortestPath}
-								onChange={(e) =>
-									onShortestPathChange?.(e.target.checked)
-								}
-							/>
-							<span className="text-sm text-slate-300">
-								Đường đi ngắn nhất (sắp xếp lại điểm — giả lập)
-							</span>
-						</label>
 
 						<ul className="overflow-y-auto max-h-[calc(100%-7rem)] py-2">
 							{ordered.map((w, i) => (

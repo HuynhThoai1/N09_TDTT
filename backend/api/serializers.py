@@ -1,7 +1,7 @@
 from rest_framework import serializers
-from tours.models import POI  
+from .models import PointOfInterest
 
 class POISerializer(serializers.ModelSerializer):
     class Meta:
-        model = POI
-        fields = '__all__'  
+        model = PointOfInterest
+        fields = '__all__'

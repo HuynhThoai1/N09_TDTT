@@ -3,11 +3,26 @@
 **/__pycache__/
 *.pyc
 db.sqlite3
+.env
 
 # Node.js (Frontend)
 **/node_modules/
 frontend/dist/
+.env.local
+
+# Dữ liệu bản đồ & OSRM (Rất nặng)
+/osrm_data/
+*.osrm*
+*.pbf
+
+# Dữ liệu ảnh & Model (Nặng hoặc rác)
+/backend/media/
+/frontend/public/assets/images/locations/
+*.pt
+*.bin
+*.h5
 
 # OS rác
 .DS_Store
 Thumbs.db
+desktop.ini

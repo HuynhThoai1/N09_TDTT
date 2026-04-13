@@ -1,0 +1,652 @@
+[
+  {
+    "id": 1,
+    "name": "Cà Phê Acoustic",
+    "latitude": 10.7811643,
+    "longitude": 106.6898451,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/1/000001.jpg",
+      "/assets/images/locations/1/000002.jpg",
+      "/assets/images/locations/1/000003.jpg"
+    ],
+    "image": "/assets/images/locations/1/000001.jpg"
+  },
+  {
+    "id": 2,
+    "name": "Cà Phê Sỏi Đá",
+    "latitude": 10.7809198,
+    "longitude": 106.689929,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/2/000001.jpg",
+      "/assets/images/locations/2/000002.jpg",
+      "/assets/images/locations/2/000003.jpg"
+    ],
+    "image": "/assets/images/locations/2/000001.jpg"
+  },
+  {
+    "id": 3,
+    "name": "Nhà Hàng Au Tresor",
+    "latitude": 10.772698,
+    "longitude": 106.7048299,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/3/000001.jpg",
+      "/assets/images/locations/3/000002.jpg",
+      "/assets/images/locations/3/000003.jpg"
+    ],
+    "image": "/assets/images/locations/3/000001.jpg"
+  },
+  {
+    "id": 4,
+    "name": "Nhà Hàng Riverside Saigon",
+    "latitude": 10.7728736,
+    "longitude": 106.7062835,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/4/000001.jpg",
+      "/assets/images/locations/4/000002.jpg",
+      "/assets/images/locations/4/000003.jpg"
+    ],
+    "image": "/assets/images/locations/4/000001.jpg"
+  },
+  {
+    "id": 5,
+    "name": "Nhà Hàng Hai Lúa Sài Gòn",
+    "latitude": 10.7807008,
+    "longitude": 106.7067111,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/5/000001.jpg",
+      "/assets/images/locations/5/000002.jpg",
+      "/assets/images/locations/5/000003.jpg"
+    ],
+    "image": "/assets/images/locations/5/000001.jpg"
+  },
+  {
+    "id": 6,
+    "name": "Cà Phê Vườn Kiểng",
+    "latitude": 10.7757808,
+    "longitude": 106.7071741,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/6/000001.jpg",
+      "/assets/images/locations/6/000002.jpg",
+      "/assets/images/locations/6/000003.jpg"
+    ],
+    "image": "/assets/images/locations/6/000001.jpg"
+  },
+  {
+    "id": 7,
+    "name": "Cà Phê Spotlight",
+    "latitude": 10.7645525,
+    "longitude": 106.7036887,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/7/000001.jpg",
+      "/assets/images/locations/7/000002.jpg",
+      "/assets/images/locations/7/000003.jpg"
+    ],
+    "image": "/assets/images/locations/7/000001.jpg"
+  },
+  {
+    "id": 8,
+    "name": "Cà Phê Màu Hoa Anh Đào",
+    "latitude": 10.7814169,
+    "longitude": 106.7061129,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/8/000001.jpg",
+      "/assets/images/locations/8/000002.jpg",
+      "/assets/images/locations/8/000003.jpg"
+    ],
+    "image": "/assets/images/locations/8/000001.jpg"
+  },
+  {
+    "id": 9,
+    "name": "The Coffee House",
+    "latitude": 10.7809412,
+    "longitude": 106.7064002,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/9/000001.jpg",
+      "/assets/images/locations/9/000002.jpg",
+      "/assets/images/locations/9/000003.jpg"
+    ],
+    "image": "/assets/images/locations/9/000001.jpg"
+  },
+  {
+    "id": 10,
+    "name": "Cà Phê Trùng 3T",
+    "latitude": 10.7805044,
+    "longitude": 106.7072351,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/10/000001.jpg",
+      "/assets/images/locations/10/000002.jpg",
+      "/assets/images/locations/10/000003.jpg"
+    ],
+    "image": "/assets/images/locations/10/000001.jpg"
+  },
+  {
+    "id": 11,
+    "name": "Nhà Hàng Buffet Vasta",
+    "latitude": 10.7820596,
+    "longitude": 106.7057171,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/11/000001.jpg",
+      "/assets/images/locations/11/000002.jpg",
+      "/assets/images/locations/11/000003.jpg"
+    ],
+    "image": "/assets/images/locations/11/000001.jpg"
+  },
+  {
+    "id": 12,
+    "name": "Nhà Hàng Wrap&Roll",
+    "latitude": 10.7732882,
+    "longitude": 106.7040253,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/12/000001.jpg",
+      "/assets/images/locations/12/000002.jpg",
+      "/assets/images/locations/12/000003.jpg"
+    ],
+    "image": "/assets/images/locations/12/000001.jpg"
+  },
+  {
+    "id": 13,
+    "name": "Bảo Tàng Địa Chất",
+    "latitude": 10.7849957,
+    "longitude": 106.7076753,
+    "category": "museum",
+    "image_list": [
+      "/assets/images/locations/13/000001.jpg",
+      "/assets/images/locations/13/000002.jpg",
+      "/assets/images/locations/13/000003.jpg"
+    ],
+    "image": "/assets/images/locations/13/000001.jpg"
+  },
+  {
+    "id": 14,
+    "name": "Nhà Hàng Crazy Buffalo",
+    "latitude": 10.767375,
+    "longitude": 106.6941425,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/14/000001.jpg",
+      "/assets/images/locations/14/000002.jpg",
+      "/assets/images/locations/14/000003.jpg"
+    ],
+    "image": "/assets/images/locations/14/000001.jpg"
+  },
+  {
+    "id": 15,
+    "name": "Nhà Hàng Pizza Fixme",
+    "latitude": 10.7680337,
+    "longitude": 106.6938158,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/15/000001.jpg",
+      "/assets/images/locations/15/000002.jpg",
+      "/assets/images/locations/15/000003.jpg"
+    ],
+    "image": "/assets/images/locations/15/000001.jpg"
+  },
+  {
+    "id": 16,
+    "name": "Cà Phê Amenity",
+    "latitude": 10.7682761,
+    "longitude": 106.6936656,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/16/000001.jpg",
+      "/assets/images/locations/16/000002.jpg",
+      "/assets/images/locations/16/000003.jpg"
+    ],
+    "image": "/assets/images/locations/16/000001.jpg"
+  },
+  {
+    "id": 17,
+    "name": "Nhà Hàng Đồ Ăn Việt Nam Aroma",
+    "latitude": 10.7684684,
+    "longitude": 106.6938884,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/17/000001.jpg",
+      "/assets/images/locations/17/000002.jpg",
+      "/assets/images/locations/17/000003.jpg"
+    ],
+    "image": "/assets/images/locations/17/000001.jpg"
+  },
+  {
+    "id": 18,
+    "name": "Cà Phê Hog's Breath",
+    "latitude": 10.7718499,
+    "longitude": 106.7048379,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/18/000001.jpg",
+      "/assets/images/locations/18/000002.jpg",
+      "/assets/images/locations/18/000003.jpg"
+    ],
+    "image": "/assets/images/locations/18/000001.jpg"
+  },
+  {
+    "id": 19,
+    "name": "Cà Phê Napoli",
+    "latitude": 10.7732622,
+    "longitude": 106.6938064,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/19/000001.jpg",
+      "/assets/images/locations/19/000002.jpg",
+      "/assets/images/locations/19/000003.jpg"
+    ],
+    "image": "/assets/images/locations/19/000001.jpg"
+  },
+  {
+    "id": 20,
+    "name": "Cà Phê Terrace",
+    "latitude": 10.7737673,
+    "longitude": 106.7011077,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/20/000001.jpg",
+      "/assets/images/locations/20/000002.jpg",
+      "/assets/images/locations/20/000003.jpg"
+    ],
+    "image": "/assets/images/locations/20/000001.jpg"
+  },
+  {
+    "id": 21,
+    "name": "Cà Phê Au Parc",
+    "latitude": 10.7787503,
+    "longitude": 106.6981182,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/21/000001.jpg",
+      "/assets/images/locations/21/000002.jpg",
+      "/assets/images/locations/21/000003.jpg"
+    ],
+    "image": "/assets/images/locations/21/000001.jpg"
+  },
+  {
+    "id": 22,
+    "name": "Cà Phê The Refinery",
+    "latitude": 10.7782301,
+    "longitude": 106.7037621,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/22/000001.jpg",
+      "/assets/images/locations/22/000002.jpg",
+      "/assets/images/locations/22/000003.jpg"
+    ],
+    "image": "/assets/images/locations/22/000001.jpg"
+  },
+  {
+    "id": 23,
+    "name": "Nhà Hàng Vietnamese Kitchen",
+    "latitude": 10.7666137,
+    "longitude": 106.6922676,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/23/000001.jpg",
+      "/assets/images/locations/23/000002.jpg",
+      "/assets/images/locations/23/000003.jpg"
+    ],
+    "image": "/assets/images/locations/23/000001.jpg"
+  },
+  {
+    "id": 24,
+    "name": "Nhà Hàng Jaspas",
+    "latitude": 10.778168,
+    "longitude": 106.7037041,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/24/000001.jpg",
+      "/assets/images/locations/24/000002.jpg",
+      "/assets/images/locations/24/000003.jpg"
+    ],
+    "image": "/assets/images/locations/24/000001.jpg"
+  },
+  {
+    "id": 25,
+    "name": "Phòng Truyền thống Thành Đoàn",
+    "latitude": 10.7820744,
+    "longitude": 106.6977069,
+    "category": "museum",
+    "image_list": [
+      "/assets/images/locations/25/000001.jpg",
+      "/assets/images/locations/25/000002.jpg",
+      "/assets/images/locations/25/000003.jpg"
+    ],
+    "image": "/assets/images/locations/25/000001.jpg"
+  },
+  {
+    "id": 26,
+    "name": "Cà Phê Đá",
+    "latitude": 10.7805631,
+    "longitude": 106.6975344,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/26/000001.jpg",
+      "/assets/images/locations/26/000002.jpg",
+      "/assets/images/locations/26/000003.jpg"
+    ],
+    "image": "/assets/images/locations/26/000001.jpg"
+  },
+  {
+    "id": 27,
+    "name": "Cà Phê 4A",
+    "latitude": 10.781379,
+    "longitude": 106.697592,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/27/000001.jpg",
+      "/assets/images/locations/27/000002.jpg",
+      "/assets/images/locations/27/000003.jpg"
+    ],
+    "image": "/assets/images/locations/27/000001.jpg"
+  },
+  {
+    "id": 28,
+    "name": "Nhà Hàng Shri Lounge",
+    "latitude": 10.7826304,
+    "longitude": 106.6972822,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/28/000001.jpg",
+      "/assets/images/locations/28/000002.jpg",
+      "/assets/images/locations/28/000003.jpg"
+    ],
+    "image": "/assets/images/locations/28/000001.jpg"
+  },
+  {
+    "id": 29,
+    "name": "Hội Quán Thanh Niên",
+    "latitude": 10.7819478,
+    "longitude": 106.6979915,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/29/000001.jpg",
+      "/assets/images/locations/29/000002.jpg",
+      "/assets/images/locations/29/000003.jpg"
+    ],
+    "image": "/assets/images/locations/29/000001.jpg"
+  },
+  {
+    "id": 30,
+    "name": "Cà Phê Ciao",
+    "latitude": 10.7751001,
+    "longitude": 106.7029693,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/30/000001.jpg",
+      "/assets/images/locations/30/000002.jpg",
+      "/assets/images/locations/30/000003.jpg"
+    ],
+    "image": "/assets/images/locations/30/000001.jpg"
+  },
+  {
+    "id": 31,
+    "name": "Nhà Hàng Ấn Độ Curry Rice",
+    "latitude": 10.7762829,
+    "longitude": 106.7042247,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/31/000001.jpg",
+      "/assets/images/locations/31/000002.jpg",
+      "/assets/images/locations/31/000003.jpg"
+    ],
+    "image": "/assets/images/locations/31/000001.jpg"
+  },
+  {
+    "id": 32,
+    "name": "Nhà Hàng Halal Sai Gon",
+    "latitude": 10.7760297,
+    "longitude": 106.7047293,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/32/000001.jpg",
+      "/assets/images/locations/32/000002.jpg",
+      "/assets/images/locations/32/000003.jpg"
+    ],
+    "image": "/assets/images/locations/32/000001.jpg"
+  },
+  {
+    "id": 33,
+    "name": "Nhà Hàng Cung Đình Rex",
+    "latitude": 10.7754972,
+    "longitude": 106.7007063,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/33/000001.jpg",
+      "/assets/images/locations/33/000002.jpg",
+      "/assets/images/locations/33/000003.jpg"
+    ],
+    "image": "/assets/images/locations/33/000001.jpg"
+  },
+  {
+    "id": 34,
+    "name": "Nhà Hàng Tiệc Cưới 108 Nguyễn Du",
+    "latitude": 10.7754764,
+    "longitude": 106.6956779,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/34/000001.jpg",
+      "/assets/images/locations/34/000002.jpg",
+      "/assets/images/locations/34/000003.jpg"
+    ],
+    "image": "/assets/images/locations/34/000001.jpg"
+  },
+  {
+    "id": 35,
+    "name": "Cà Phê 30-4",
+    "latitude": 10.7761438,
+    "longitude": 106.6946963,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/35/000001.jpg",
+      "/assets/images/locations/35/000002.jpg",
+      "/assets/images/locations/35/000003.jpg"
+    ],
+    "image": "/assets/images/locations/35/000001.jpg"
+  },
+  {
+    "id": 36,
+    "name": "Nhà Hàng Alibaba",
+    "latitude": 10.7743953,
+    "longitude": 106.7040996,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/36/000001.jpg",
+      "/assets/images/locations/36/000002.jpg",
+      "/assets/images/locations/36/000003.jpg"
+    ],
+    "image": "/assets/images/locations/36/000001.jpg"
+  },
+  {
+    "id": 37,
+    "name": "Highlands Coffee",
+    "latitude": 10.7769684,
+    "longitude": 106.70344,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/37/000001.jpg",
+      "/assets/images/locations/37/000002.jpg",
+      "/assets/images/locations/37/000003.jpg"
+    ],
+    "image": "/assets/images/locations/37/000001.jpg"
+  },
+  {
+    "id": 38,
+    "name": "Nhà Hàng Hải Cảng",
+    "latitude": 10.7662887,
+    "longitude": 106.7077614,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/38/000001.jpg",
+      "/assets/images/locations/38/000002.jpg",
+      "/assets/images/locations/38/000003.jpg"
+    ],
+    "image": "/assets/images/locations/38/000001.jpg"
+  },
+  {
+    "id": 39,
+    "name": "Nhà Hàng Honeymoon",
+    "latitude": 10.7602951,
+    "longitude": 106.6991702,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/39/000001.jpg",
+      "/assets/images/locations/39/000002.jpg",
+      "/assets/images/locations/39/000003.jpg"
+    ],
+    "image": "/assets/images/locations/39/000001.jpg"
+  },
+  {
+    "id": 40,
+    "name": "Cửa Hàng Xôi Chè Bùi Thị Xuân",
+    "latitude": 10.7675882,
+    "longitude": 106.6863944,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/40/000001.jpg",
+      "/assets/images/locations/40/000002.jpg",
+      "/assets/images/locations/40/000003.jpg"
+    ],
+    "image": "/assets/images/locations/40/000001.jpg"
+  },
+  {
+    "id": 41,
+    "name": "Topping Beef",
+    "latitude": 10.7797991,
+    "longitude": 106.6949139,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/41/000001.jpg",
+      "/assets/images/locations/41/000002.jpg",
+      "/assets/images/locations/41/000003.jpg"
+    ],
+    "image": "/assets/images/locations/41/000001.jpg"
+  },
+  {
+    "id": 42,
+    "name": "The Coffee Bean & Tea Leaf",
+    "latitude": 10.7805315,
+    "longitude": 106.6956539,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/42/000001.jpg",
+      "/assets/images/locations/42/000002.jpg",
+      "/assets/images/locations/42/000003.jpg"
+    ],
+    "image": "/assets/images/locations/42/000001.jpg"
+  },
+  {
+    "id": 43,
+    "name": "Cà Phê Calibre",
+    "latitude": 10.7743763,
+    "longitude": 106.7037363,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/43/000001.jpg",
+      "/assets/images/locations/43/000002.jpg",
+      "/assets/images/locations/43/000003.jpg"
+    ],
+    "image": "/assets/images/locations/43/000001.jpg"
+  },
+  {
+    "id": 44,
+    "name": "Trung Nguyên Coffee",
+    "latitude": 10.7817145,
+    "longitude": 106.6982688,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/44/000001.jpg",
+      "/assets/images/locations/44/000002.jpg",
+      "/assets/images/locations/44/000003.jpg"
+    ],
+    "image": "/assets/images/locations/44/000001.jpg"
+  },
+  {
+    "id": 45,
+    "name": "Quán Cà Phê Papa",
+    "latitude": 10.7833122,
+    "longitude": 106.6956127,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/45/000001.jpg",
+      "/assets/images/locations/45/000002.jpg",
+      "/assets/images/locations/45/000003.jpg"
+    ],
+    "image": "/assets/images/locations/45/000001.jpg"
+  },
+  {
+    "id": 46,
+    "name": "Cà Phê Gió Bấc",
+    "latitude": 10.783145,
+    "longitude": 106.6955418,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/46/000001.jpg",
+      "/assets/images/locations/46/000002.jpg",
+      "/assets/images/locations/46/000003.jpg"
+    ],
+    "image": "/assets/images/locations/46/000001.jpg"
+  },
+  {
+    "id": 47,
+    "name": "Highlands Coffee",
+    "latitude": 10.7686142,
+    "longitude": 106.6934398,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/47/000001.jpg",
+      "/assets/images/locations/47/000002.jpg",
+      "/assets/images/locations/47/000003.jpg"
+    ],
+    "image": "/assets/images/locations/47/000001.jpg"
+  },
+  {
+    "id": 48,
+    "name": "Nhà Hàng Bornga",
+    "latitude": 10.7788067,
+    "longitude": 106.7020073,
+    "category": "restaurant",
+    "image_list": [
+      "/assets/images/locations/48/000001.jpg",
+      "/assets/images/locations/48/000002.jpg",
+      "/assets/images/locations/48/000003.jpg"
+    ],
+    "image": "/assets/images/locations/48/000001.jpg"
+  },
+  {
+    "id": 49,
+    "name": "The Coffee Bean & Tea Leaf",
+    "latitude": 10.7680657,
+    "longitude": 106.695136,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/49/000001.jpg",
+      "/assets/images/locations/49/000002.jpg",
+      "/assets/images/locations/49/000003.jpg"
+    ],
+    "image": "/assets/images/locations/49/000001.jpg"
+  },
+  {
+    "id": 50,
+    "name": "The Coffee Bean & Tea Leaf;235 Đồng Khởi",
+    "latitude": 10.7786273,
+    "longitude": 106.6999908,
+    "category": "cafe",
+    "image_list": [
+      "/assets/images/locations/50/000001.jpg",
+      "/assets/images/locations/50/000002.jpg",
+      "/assets/images/locations/50/000003.jpg"
+    ],
+    "image": "/assets/images/locations/50/000001.jpg"
+  }
+]

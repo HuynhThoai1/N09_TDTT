@@ -5,280 +5,116 @@ from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-try:
-    from tours.models import POI, Node
-except ImportError:
-    POI = None
-    Node = None
+from .models import PointOfInterest
+from .serializers import POISerializer
+from .semantic_search import find_related_pois
+from .itinerary_optimizer import build_top3_routes
 
-try:
-    from .serializers import POISerializer
-except ImportError:
-    POISerializer = None
+# --- HELPER FUNCTIONS ---
 
-from .ai_services import generate_vector, generate_image_vector
-
-BASE_DIR = Path(settings.BASE_DIR)
-PROJECT_ROOT = BASE_DIR.parent
-sys.path.append(str(PROJECT_ROOT))
-
-try:
-    from ai_engine.RoutingEngine import RoutingEngine, LocationMatcher
-    AI_ENGINE_AVAILABLE = True
-except ModuleNotFoundError:
-    RoutingEngine = None
-    LocationMatcher = None
-    AI_ENGINE_AVAILABLE = False
+def _fix_image_path(request, p):
+    """Sửa lỗi đường dẫn ảnh (assets -> media) và đảm bảo có domain."""
+    if not p: return ""
+    base_url = request.build_absolute_uri('/')[:-1]
+    # Chuyển assets sang media và xóa domain dư thừa nếu có
+    clean_p = str(p).replace("assets/images", "media").replace("http://localhost:8000/", "").lstrip('/')
+    return f"{base_url}/{clean_p}"
 
 
-class DemoLocationMatcher:
-    def __init__(self):
-        self.names = list(Node.objects.values_list('name', flat=True)) if Node else []
-
-    def find_node(self, raw_name):
-        query = (raw_name or '').strip()
-        if not query:
-            return '', 'Not Found'
-
-        for name in self.names:
-            if name.lower() == query.lower():
-                return name, 'Exact Match'
-
-        for name in self.names:
-            if query.lower() in name.lower():
-                return name, 'Partial Match'
-
-        return query, 'Not Found'
-
-
-class DemoRoutingEngine:
-    def loadMapData(self, *_args, **_kwargs):
-        return True
-
-    def calculateRoute(self, startNode, endNode, totalMaxTime=100.0):
-        try:
-            start = Node.objects.get(name=startNode)
-            end = Node.objects.get(name=endNode)
-        except Node.DoesNotExist:
-            return {
-                'route_string': 'Khong tim thay node de mo phong tuyen duong.',
-                'coordinates': []
-            }
-
-        return {
-            'route_string': f'Demo route from {startNode} to {endNode} (max {totalMaxTime} minutes).',
-            'coordinates': [
-                [start.latitude, start.longitude],
-                [end.latitude, end.longitude],
-            ]
-        }
-
-
-engine = RoutingEngine() if AI_ENGINE_AVAILABLE else DemoRoutingEngine()
-
-BASE_DIR = Path(settings.BASE_DIR)
-PROJECT_ROOT = BASE_DIR.parent
-DATA_ROOT_CANDIDATES = [
-    BASE_DIR / 'data',
-    PROJECT_ROOT / 'database',
-    PROJECT_ROOT / 'data',
-]
-
-
-def _resolve_data_file(filename):
-    for folder in DATA_ROOT_CANDIDATES:
-        candidate = folder / filename
-        if candidate.exists():
-            return str(candidate)
-    return str((BASE_DIR / 'data') / filename)
-
-
-def _resolve_output_file(filename):
-    for folder in DATA_ROOT_CANDIDATES:
-        if folder.exists():
-            return folder / filename
-    return PROJECT_ROOT / 'database' / filename
-
-
-nodesPath = _resolve_data_file('nodes.json')
-edgesPath = _resolve_data_file('edges.json')
-poisPath = _resolve_data_file('pois.json')
-
-isLoaded = engine.loadMapData(nodesPath, edgesPath, poisPath)
-
-matcher = None
-if isLoaded:
-    if AI_ENGINE_AVAILABLE:
-        available_nodes = list(engine.graph.nodes())
-        matcher = LocationMatcher(available_nodes)
-        print('AI Engine da san sang!')
-    else:
-        matcher = DemoLocationMatcher()
-        print('Demo mode da san sang (khong can ai_engine).')
-else:
-    print('CANH BAO: Khong tim thay du lieu ban do.')
-
-
-# --- CÁC HÀM XỬ LÝ API ---
+# --- API VIEWS ---
 
 @api_view(['GET'])
-def getAllPOIs(request):
+def searchLocations(request):
     """
-    API lấy danh sách toàn bộ điểm thú vị để FE hiển thị lên bản đồ.
+    API tìm kiếm địa điểm từ danh sách POIs dựa trên query 'name'.
+    Hỗ trợ debounce từ Frontend.
     """
-    if POI is None or POISerializer is None:
-        return Response({'status': 'error', 'message': 'POI API is not available.'}, status=503)
+    query = request.GET.get('name', '').strip()
+    if not query: return Response([])
 
-    pois = POI.objects.all()
-    serializer = POISerializer(pois, many=True)
-    return Response(serializer.data)
+    locations = PointOfInterest.objects.filter(name__icontains=query)[:15]
+    results = []
+
+    for loc in locations:
+        results.append({
+            "id": loc.poi_id or str(loc.id),
+            "poi_id": loc.poi_id,
+            "name": loc.name,
+            "latitude": loc.latitude,
+            "longitude": loc.longitude,
+            "category": loc.category or "Địa danh",
+            "image": _fix_image_path(request, loc.image),
+            "image_list": [_fix_image_path(request, img) for img in loc.image_list if img],
+            "description": loc.description,
+            "address": loc.address or "Quận 1, TP. Hồ Chí Minh"
+        })
+    return Response(results)
 
 
 @api_view(['POST'])
-def calculateRoute(request):
+def smartItinerary(request):
     """
-    API tiếp nhận Điểm A, Điểm B để tính toán đường đi 'chill' nhất.
+    API chính của hệ thống AI Smart Itinerary sử dụng Giải thuật Di truyền.
     """
     if Node is None:
         return Response({'status': 'error', 'message': 'Route API is not available.'}, status=503)
 
     data = request.data
-    raw_start = data.get('start_location', '')
-    raw_end = data.get('end_location', '')
-    
-    try:
-        max_time = float(data.get('extra_time', 100.0))
-    except (ValueError, TypeError):
-        return Response({'status': 'error', 'message': 'Tham số extra_time không hợp lệ (cần định dạng số).'}, status=400)
+    raw_stops = data.get("stops", [])
+    prompt_text = data.get("prompt_text", "").strip()
 
-    # 1. Kiểm tra nếu chưa nạp được bản đồ
-    if not isLoaded or not matcher:
-        return Response({"status": "error", "message": "Dữ liệu bản đồ chưa sẵn sàng."}, status=500)
+    if len(raw_stops) < 1:
+        return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
 
-    # 2. Sử dụng Matcher của Tài để chuẩn hóa tên địa điểm (Sửa lỗi chính tả)
-    start_node, start_status = matcher.find_node(raw_start)
-    end_node, end_status = matcher.find_node(raw_end)
+    # --- Bước 0: Làm giàu dữ liệu Stops từ Database ---
+    enriched_stops = []
+    for s in raw_stops:
+        sid = s.get("poi_id") or s.get("id")
+        try:
+            loc = PointOfInterest.objects.filter(poi_id=sid).first() or PointOfInterest.objects.filter(id=sid).first()
+            if loc:
+                enriched_stops.append({
+                    "id": loc.poi_id or str(loc.id),
+                    "poi_id": loc.poi_id,
+                    "name": loc.name,
+                    "latitude": loc.latitude,
+                    "longitude": loc.longitude,
+                    "image": loc.image,
+                    "image_list": loc.image_list,
+                    "description": loc.description,
+                    "category": loc.category,
+                    "address": loc.address
+                })
+            else:
+                enriched_stops.append(s)
+        except:
+            enriched_stops.append(s)
 
-    if start_status == "Not Found" or end_status == "Not Found":
-        return Response({
-            "status": "error",
-            "message": f"Không tìm thấy địa điểm: {raw_start if start_status == 'Not Found' else raw_end}"
-        }, status=404)
+    # --- Bước 1: Tìm kiếm ngữ nghĩa (Semantic Search) ---
+    bonus_candidates = []
+    if prompt_text:
+        bonus_candidates = find_related_pois(
+            prompt_text=prompt_text,
+            mandatory_stops=enriched_stops,
+            top_k=15,
+        )
 
-    # 3. Gọi thuật toán của Tài để tính toán đường đi thật
-    result = engine.calculateRoute(
-        startNode=start_node,
-        endNode=end_node,
-        totalMaxTime=max_time
+    # --- Bước 2: Tối ưu hóa lộ trình (AI Genetic Algorithm) ---
+    routes = build_top3_routes(
+        mandatory_stops=enriched_stops,
+        bonus_candidates=bonus_candidates,
+        prompt_text=prompt_text
     )
 
-    # 4. Trả kết quả về cho Frontend
-    if not result.get('coordinates'):
-        return Response({
-            "status": "error",
-            "message": result.get('route_string', "Không tìm thấy đường đi phù hợp.")
-        }, status=404)
+    # --- Bước 3: Fix path ảnh ---
+    for route in routes:
+        for wp in route.get("waypoints", []):
+            wp["image"] = _fix_image_path(request, wp.get("image"))
+            wp["image_list"] = [_fix_image_path(request, img) for img in wp.get("image_list", []) if img]
 
     return Response({
         "status": "success",
-        "input_processed": {
-            "start": start_node,
-            "end": end_node,
-            "match_type": f"Start:{start_status}, End:{end_status}"
-        },
-        "route_info": {
-            "description": result['route_string'],
-            "total_time_allowed": max_time
-        },
-        "path_coordinates": result['coordinates']
+        "prompt_text": prompt_text,
+        "bonus_candidates": bonus_candidates[:5], 
+        "routes": routes,
     })
-
-
-@api_view(['POST'])
-def get_text_embedding(request):
-    """
-    API chuyển đổi văn bản (text) thành Vector (embedding).
-    """
-    text = str(request.data.get('text', '')).strip()
-    if not text:
-        return Response(
-            {'status': 'error', 'message': 'Vui long cung cap truong "text".'},
-            status=400,
-        )
-
-    try:
-        vector = generate_vector(text)
-    except RuntimeError as exc:
-        return Response({'status': 'error', 'message': str(exc)}, status=503)
-    except Exception as exc:
-        return Response({'status': 'error', 'message': str(exc)}, status=500)
-
-    return Response(
-        {
-            'status': 'success',
-            'text': text,
-            'dimensions': len(vector),
-            'embedding': vector,
-        },
-        status=200,
-    )
-
-
-@api_view(['POST'])
-def get_image_embedding(request):
-    """
-    API chuyển đổi ảnh (upload file) thành Vector (embedding) và lưu vào JSON.
-    """
-    imageFile = request.FILES.get('image')
-    if imageFile is None:
-        return Response(
-            {'status': 'error', 'message': 'Vui long upload file anh qua truong "image".'},
-            status=400,
-        )
-
-    try:
-        imageBytes = imageFile.read()
-        vector = generate_image_vector(imageBytes)
-    except ValueError as exc:
-        return Response({'status': 'error', 'message': str(exc)}, status=400)
-    except RuntimeError as exc:
-        return Response({'status': 'error', 'message': str(exc)}, status=503)
-    except Exception as exc:
-        return Response({'status': 'error', 'message': str(exc)}, status=500)
-
-    outputPath = _resolve_output_file('image_vectors.json')
-    outputPath.parent.mkdir(parents=True, exist_ok=True)
-
-    record = {
-        'id': str(request.data.get('id', '')).strip() or imageFile.name,
-        'filename': imageFile.name,
-        'content_type': imageFile.content_type,
-        'size': imageFile.size,
-        'dimensions': len(vector),
-        'embedding': vector,
-    }
-
-    existing_records = []
-    if outputPath.exists():
-        try:
-            with outputPath.open('r', encoding='utf-8') as f:
-                existing_records = json.load(f)
-            if not isinstance(existing_records, list):
-                existing_records = []
-        except Exception:
-            existing_records = []
-
-    existing_records.append(record)
-    with outputPath.open('w', encoding='utf-8') as f:
-        json.dump(existing_records, f, ensure_ascii=False, indent=2)
-
-    return Response(
-        {
-            'status': 'success',
-            'saved_to': str(outputPath),
-            'id': record['id'],
-            'dimensions': record['dimensions'],
-            'embedding': record['embedding'],
-        },
-        status=200,
-    )
