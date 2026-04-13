@@ -8,7 +8,7 @@ import random
 import numpy as np
 import time
 
-OSRM_BASE = "http://router.project-osrm.org"
+OSRM_BASE = "http://localhost:5000"
 
 # --- MAPPING VIỆT HÓA CATEGORY ---
 CATEGORY_MAP = {
@@ -166,7 +166,7 @@ def _generate_ai_reason(route: list, prompt: str) -> str:
     bonus_points.sort(key=lambda x: x.get("similarity_score", 0), reverse=True)
 
     if not bonus_points:
-        return f"Lộ trình được thiết kế tập trung tối đa vào các yêu cầu '{prompt}' thông qua trình tự sắp xếp các điểm dừng bạn đã chọn."
+        return f"Dựa trên yêu cầu '{prompt}', chúng tôi đã tối ưu hóa trình tự di chuyển giữa các điểm bạn chọn để hành trình diễn ra mạch lạc và tiết kiệm thời gian nhất."
 
     top_p = bonus_points[0]
     # Việt hóa category
@@ -224,8 +224,12 @@ def _greedy_insertion_route(mandatory: list, candidates: list, time_matrix_full:
 
 def format_duration(seconds: float) -> str:
     minutes = round(seconds / 60)
-    if minutes < 60: return f"{minutes} phút"
-    return f"{minutes // 60}h{minutes % 60:02d}p"
+    if minutes < 60: return f"≈ {minutes}′"
+    return f"≈ {minutes // 60}h{minutes % 60:02d}′"
+
+def format_distance(meters: float) -> str:
+    if meters < 1000: return f"{round(meters)} m"
+    return f"{round(meters / 1000, 1)} km"
 
 def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text: str = "") -> list:
     if len(mandatory_stops) < 1: return []
@@ -260,6 +264,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             "waypoints": [{**s, "is_mandatory": True} for s in mandatory_stops],
             "polyline": r0_geo["geometry_coords"] if r0_geo else None,
             "duration_text": format_duration(r0_geo["total_seconds"]) if r0_geo else "N/A",
+            "distance_text": format_distance(r0_geo["total_meters"]) if r0_geo else "N/A",
             "total_stops": len(mandatory_stops),
         })
         
@@ -282,6 +287,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             "waypoints": [{**s, "is_mandatory": True} for s in r1_waypoints],
             "polyline": r1_geo["geometry_coords"] if r1_geo else None,
             "duration_text": format_duration(r1_geo["total_seconds"]) if r1_geo else "N/A",
+            "distance_text": format_distance(r1_geo["total_meters"]) if r1_geo else "N/A",
             "total_stops": len(r1_waypoints),
         })
         
@@ -303,6 +309,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
                     "waypoints": [{**w, "is_mandatory": any((str(m.get('id') or m.get('poi_id')) == str(w.get('id') or w.get('poi_id'))) for m in mandatory_stops)} for w in r2_waypoints],
                     "polyline": r2_geo["geometry_coords"] if r2_geo else None,
                     "duration_text": format_duration(r2_geo["total_seconds"]) if r2_geo else "N/A",
+                    "distance_text": format_distance(r2_geo["total_meters"]) if r2_geo else "N/A",
                     "total_stops": len(r2_waypoints),
                 })
     
@@ -339,6 +346,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w1)],
             "polyline": g1["geometry_coords"] if g1 else None,
             "duration_text": format_duration(g1["total_seconds"]) if g1 else "N/A",
+            "distance_text": format_distance(g1["total_meters"]) if g1 else "N/A",
             "total_stops": len(w1),
         })
 
@@ -356,6 +364,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w2)],
             "polyline": g2["geometry_coords"] if g2 else None,
             "duration_text": format_duration(g2["total_seconds"]) if g2 else "N/A",
+            "distance_text": format_distance(g2["total_meters"]) if g2 else "N/A",
             "total_stops": len(w2),
         })
 
@@ -375,6 +384,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w3)],
             "polyline": g3["geometry_coords"] if g3 else None,
             "duration_text": format_duration(g3["total_seconds"]) if g3 else "N/A",
+            "distance_text": format_distance(g3["total_meters"]) if g3 else "N/A",
             "total_stops": len(w3),
         })
 

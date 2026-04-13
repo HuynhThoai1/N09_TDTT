@@ -144,7 +144,7 @@ export default function Sidebar({
 		setIsGenerating(true);
 
 		const payload = {
-			stops: stops.slice(0, 1).map((s) => ({
+			stops: stops.map((s) => ({
 				id: s.id || s.poi_id,
 				name: s.name,
 				latitude: s.latitude,
@@ -181,6 +181,8 @@ export default function Sidebar({
 				ai_reason: r.ai_reason,
 				duration_text: r.duration_text,
 				total_stops: r.total_stops,
+				totalDuration: r.duration_text || "Chưa rõ",
+				totalDistance: r.distance_text || "Chưa rõ",
 				waypoints: r.waypoints || [],
 				// Polyline thực tế từ OSRM để vẽ lên bản đồ
 				polyline: r.polyline || null,

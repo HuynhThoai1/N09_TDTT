@@ -4,6 +4,40 @@ Hệ thống ứng dụng trí tuệ nhân tạo để tự động hóa việc 
 
 ---
 
+```text
+N09_TDTT/
+├── .vscode/                    # Cấu hình workspace cho VSCode
+├── .gitignore                  # Cấu hình các file/thư mục không đưa lên Git
+├── caodata.ipynb               # Script/Notebook dùng để cào dữ liệu
+├── crawl_poi_images.py         # Script Python tải ảnh POI
+├── docker-compose.yml          # Cấu hình Docker cho PostgreSQL và OSRM
+├── package-lock.json           # File khóa phiên bản NPM tại root
+├── readme.md                   # Tài liệu tổng quan và hướng dẫn dự án
+├── ai_engine/                  # Thành phần AI: mô hình và thuật toán xử lý thông minh
+│   └── (các module nội bộ)     # Tổ chức code AI theo chức năng
+├── backend/                    # Máy chủ Django xử lý nghiệp vụ và cung cấp API
+│   ├── manage.py               # Công cụ chạy server, migrate, tạo dữ liệu mẫu
+│   ├── requirements.txt        # Danh sách thư viện Python cần cài
+│   ├── db.sqlite3              # Cơ sở dữ liệu SQLite dùng cho môi trường test/dev
+│   ├── api/                    # App API tổng hợp, đầu mối xử lý endpoint chung
+│   ├── core/                   # Cấu hình trung tâm Django (settings, urls, wsgi, asgi)
+│   ├── tours/                  # App quản lý tour, lịch trình, điểm đến
+│   └── users/                  # App quản lý người dùng và xác thực
+├── database/                   # Tài liệu dữ liệu: ERD, script SQL, mock data
+│   └── (tài nguyên dữ liệu)    # Nơi lưu thiết kế và dữ liệu phục vụ phát triển
+├── frontend/                   # Ứng dụng giao diện người dùng (ReactJS + Vite)
+│   ├── src/                    # Mã nguồn chính: pages, components, services, hooks
+│   ├── public/                 # Tài nguyên tĩnh: ảnh, icon, file public
+│   ├── package.json            # Cấu hình npm scripts và dependencies
+│   ├── vite.config.js          # Cấu hình Vite cho build/dev server
+│   ├── eslint.config.js        # Cấu hình kiểm tra chất lượng mã nguồn frontend
+│   ├── index.html              # File HTML gốc để mount ứng dụng React
+│   └── README.md               # Hướng dẫn riêng cho phần frontend
+├── osrm_data/                  # Dữ liệu map nội bộ dùng cho định tuyến OSRM
+└── scripts/                    # Scripts hỗ trợ quản lý dự án
+```
+
+
 ## 🚀 Tính năng nổi bật
 
 - **Tìm kiếm Ngữ nghĩa (Semantic Search):** Sử dụng mô hình **CLIP (ViT-B-32)** để hiểu nhu cầu người dùng.
@@ -44,11 +78,25 @@ Vì các file bản đồ và dữ liệu ảnh rất nặng, bạn hãy tải t
 ---
 
 ### Bước 3: Cấu hình và Chạy Backend (Django)
-Mở terminal tại thư mục dự án và thực hiện:
+Mở terminal tại thư mục dự án và thực hiện chi tiết các bước sau:
 1. Di chuyển vào thư mục backend: `cd backend`
-2. Kích hoạt môi trường ảo (Windows): `venv\Scripts\activate`
-3. Cài đặt thư viện: `pip install -r requirements.txt`
-4. Khởi chạy server: `python manage.py runserver`
+2. Kích hoạt môi trường ảo (Windows): `source ./venv/Scripts/activate` (nếu sử dụng venv)
+3. Cài đặt thư viện cho dự án: `pip install -r requirements.txt`
+   *(Lưu ý: File này đã bao gồm đầy đủ thư viện `sentence-transformers` dùng cho AI NLP)*
+4. Khởi tạo cấu trúc Database (Migration):
+   ```bash
+   python manage.py migrate
+   ```
+5. **(Quan trọng) Import dữ liệu địa điểm vào Database:** Ở các phiên bản trước hệ thống dùng file `pois_auto_v2.json`, nhưng hiện tại chúng ta đã thống nhất dùng file dữ liệu đầy đủ vector là `district1_full_data.json`. Chạy lệnh sau để load:
+   ```bash
+   python manage.py import_pois --clear district1_full_data.json
+   ```
+   *(Cờ `--clear` giúp tự động dọn sạch rác trong DB và thay thế bằng tập dữ liệu chuẩn này, đảm bảo ai cấu hình cũng ra cùng 1 source data giống nhau)*
+6. Khởi chạy server: 
+   ```bash
+   python manage.py runserver
+   ```
+   *(Lưu ý nhỏ: Ở lần gọi lộ trình AI đầu tiên, ứng dụng sẽ tải model CLIP từ HuggingFace nặng khoảng hơn 600MB nên có thể mạng cần ổn định, tránh đứt đoạn báo lỗi trả về 1 route.)*
 
 ### Bước 4: Khởi động Frontend (React)
 Mở một terminal khác:
