@@ -1,7 +1,10 @@
 asgiref==3.11.1
-Django==6.0.3
+Django
 sqlparse==0.5.5
 tzdata==2025.3
 djangorestframework
 django-cors-headers
 networkx
+sentence-transformers
+torch
+Pillow

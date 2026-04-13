@@ -1,4 +1,5 @@
 import sys
+import json
 from pathlib import Path
 from django.conf import settings
 from rest_framework.decorators import api_view
@@ -55,6 +56,9 @@ def smartItinerary(request):
     """
     API chính của hệ thống AI Smart Itinerary sử dụng Giải thuật Di truyền.
     """
+    if Node is None:
+        return Response({'status': 'error', 'message': 'Route API is not available.'}, status=503)
+
     data = request.data
     raw_stops = data.get("stops", [])
     prompt_text = data.get("prompt_text", "").strip()
