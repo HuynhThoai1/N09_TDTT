@@ -112,7 +112,7 @@ if __name__ == "__main__":
     engine = RoutingEngine()
 
     # Nạp dữ liệu từ thư mục data
-    is_loaded = engine.loadMapData("../database/nodes.json", "../database/edges.json", "../database/pois.json")
+    is_loaded = engine.loadMapData("../backend/data/nodes.json", "../backend/data/edges.json", "../backend/data/district1_full_data.json")
     
     if not is_loaded:
         print("Không thể nạp dữ liệu bản đồ. Vui lòng kiểm tra lại đường dẫn.")
