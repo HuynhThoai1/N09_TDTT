@@ -1,134 +1,92 @@
-# 🗺️ Hệ thống Lên kế hoạch Hành trình Thông minh (AI Itinerary Planner)
+# 🗺️ AI Itinerary Planner - Hệ thống Lên kế hoạch Hành trình Thông minh
 
-Hệ thống ứng dụng trí tuệ nhân tạo để tự động hóa việc lên kế hoạch hành trình du lịch dựa trên **ý định người dùng (Intent-driven)**.
+[![Django](https://img.shields.io/badge/Backend-Django_6.0-green?logo=django)](https://www.djangoproject.com/)
+[![React](https://img.shields.io/badge/Frontend-React_18-blue?logo=react)](https://react.dev/)
+[![Docker](https://img.shields.io/badge/Infrastructure-Docker-blue?logo=docker)](https://www.docker.com/)
+[![AI-CLIP](https://img.shields.io/badge/AI-CLIP_ViT--B--32-orange?logo=pytorch)](https://openai.com/blog/clip/)
+
+Hệ thống ứng dụng trí tuệ nhân tạo để tự động hóa việc lên kế hoạch hành trình du lịch dựa trên **ý định người dùng (Intent-driven)** và tối ưu hóa bằng **Giải thuật Di truyền (Genetic Algorithm)**.
 
 ---
+
+## 📂 Cấu trúc dự án (Refined)
 
 ```text
 N09_TDTT/
-├── .vscode/                    # Cấu hình workspace cho VSCode
-├── .gitignore                  # Cấu hình các file/thư mục không đưa lên Git
-├── caodata.ipynb               # Script/Notebook dùng để cào dữ liệu
-├── crawl_poi_images.py         # Script Python tải ảnh POI
-├── docker-compose.yml          # Cấu hình Docker cho PostgreSQL và OSRM
-├── package-lock.json           # File khóa phiên bản NPM tại root
-├── readme.md                   # Tài liệu tổng quan và hướng dẫn dự án
-├── ai_engine/                  # Thành phần AI: mô hình và thuật toán xử lý thông minh
-│   └── (các module nội bộ)     # Tổ chức code AI theo chức năng
-├── backend/                    # Máy chủ Django xử lý nghiệp vụ và cung cấp API
-│   ├── manage.py               # Công cụ chạy server, migrate, tạo dữ liệu mẫu
-│   ├── requirements.txt        # Danh sách thư viện Python cần cài
-│   ├── db.sqlite3              # Cơ sở dữ liệu SQLite dùng cho môi trường test/dev
-│   ├── api/                    # App API tổng hợp, đầu mối xử lý endpoint chung
-│   ├── core/                   # Cấu hình trung tâm Django (settings, urls, wsgi, asgi)
-│   ├── tours/                  # App quản lý tour, lịch trình, điểm đến
-│   └── users/                  # App quản lý người dùng và xác thực
-├── database/                   # Tài liệu dữ liệu: ERD, script SQL, mock data
-│   └── (tài nguyên dữ liệu)    # Nơi lưu thiết kế và dữ liệu phục vụ phát triển
-├── frontend/                   # Ứng dụng giao diện người dùng (ReactJS + Vite)
-│   ├── src/                    # Mã nguồn chính: pages, components, services, hooks
-│   ├── public/                 # Tài nguyên tĩnh: ảnh, icon, file public
-│   ├── package.json            # Cấu hình npm scripts và dependencies
-│   ├── vite.config.js          # Cấu hình Vite cho build/dev server
-│   ├── eslint.config.js        # Cấu hình kiểm tra chất lượng mã nguồn frontend
-│   ├── index.html              # File HTML gốc để mount ứng dụng React
-│   └── README.md               # Hướng dẫn riêng cho phần frontend
-├── osrm_data/                  # Dữ liệu map nội bộ dùng cho định tuyến OSRM
-└── scripts/                    # Scripts hỗ trợ quản lý dự án
+├── ai_engine/          # Thuật toán tối ưu & Routing core
+├── backend/            # Django REST Framework (Business Logic)
+│   ├── api/            # API Endpoints & Semantic Search
+│   ├── data/           # Seed data (JSON vector files)
+│   └── media/          # Ảnh địa điểm (Local GIS Storage)
+├── frontend/           # React + Vite (UI/UX)
+├── docs/               # Tài liệu dự án & Sơ đồ ERD
+├── scripts/            # Công cụ hỗ trợ (Crawl ảnh, xử lý dữ liệu)
+├── osrm_data/          # Bản đồ offline cho Engine định tuyến
+└── docker-compose.yml  # Hạ tầng PostgreSQL (pgvector) & OSRM
 ```
 
-
-## 🚀 Tính năng nổi bật
-
-- **Tìm kiếm Ngữ nghĩa (Semantic Search):** Sử dụng mô hình **CLIP (ViT-B-32)** để hiểu nhu cầu người dùng.
-- **Tối ưu hóa hành trình:** Giải thuật **Di truyền (Genetic Algorithm)** giúp tìm lộ trình tối ưu nhất.
-- **Đề xuất Đa dạng:** Cung cấp 3 phương án hành trình: *Tinh túy*, *Ẩm thực & Thư giãn*, và *Khám phá & Trải nghiệm*.
-- **Định tuyến Thực tế (Local GIS):** Tích hợp engine **OSRM cục bộ** để tính toán thời gian chính xác.
-- **Lưu trữ Vector:** Sử dụng mở rộng **pgvector** trên PostgreSQL để truy vấn cực nhanh.
-
 ---
 
-## 🛠️ Công nghệ sử dụng
+## ⚡ Cài đặt nhanh (Quick Setup)
 
-- **Frontend:** React.js (Vite), Leaflet Map, Lucide Icons.
-- **Backend:** Django Rest Framework, PyTorch (CLIP), OSRM API.
-- **Infrastructure:** Docker & Docker Compose (PostgreSQL 16 + pgvector).
+Dành cho các thành viên muốn khởi chạy dự án ngay lập tức. Hãy copy và dán toàn bộ các khối lệnh bên dưới vào Terminal.
 
----
-
-## ⚙️ Hướng dẫn cài đặt & Khởi chạy (Dành cho Team)
-
-Để chạy dự án này, bạn cần thực hiện theo các bước sau:
-
-### Bước 1: Khởi tạo hạ tầng (Docker)
-Đảm bảo bạn đã cài Docker Desktop, sau đó tại thư mục gốc chạy lệnh:
+### 1. Chuẩn bị Hạ tầng (Docker & Env)
+*Chạy tại thư mục gốc:*
 ```bash
-docker-compose up -d
+# Tạo file cấu hình từ mẫu và khởi động Docker
+cp .env.example .env && docker compose up -d
 ```
-*Lệnh này sẽ khởi động PostgreSQL (pgvector) và OSRM Engine (Cổng 5000).*
 
-### Bước 2: Thiết lập dữ liệu nặng từ Drive
-Vì các file bản đồ và dữ liệu ảnh rất nặng, bạn hãy tải từ Link Drive sau:
-- **Link Drive:** [Tải tại đây](https://drive.google.com/drive/folders/1Tr-oR9hALMCJf4J4a1lRFun6iiOCzWXv?usp=drive_link)
+### 2. Khởi tạo Backend (Dành cho Bash/Git Bash)
+*Mở một Terminal mới và chạy:*
+```bash
+cd backend && \
+source ./venv/Scripts/activate && \
+pip install -r requirements.txt && \
+python manage.py migrate && \
+python manage.py import_pois --clear data/district1_full_data.json && \
+python manage.py runserver
+```
 
-**Hướng dẫn giải nén:**
-1. File `osrm_data.zip`: Giải nén thư mục `osrm_data` bỏ vào **thư mục gốc** dự án (ngang hàng với `docker-compose.yml`).
-2. File `media.zip`: Giải nén thư mục `media` bỏ vào bên trong thư mục **`backend/`**.
-
----
-
-### Bước 3: Cấu hình và Chạy Backend (Django)
-Mở terminal tại thư mục dự án và thực hiện chi tiết các bước sau:
-1. Di chuyển vào thư mục backend: `cd backend`
-2. Kích hoạt môi trường ảo (Windows): `source ./venv/Scripts/activate` (nếu sử dụng venv)
-3. Cài đặt thư viện cho dự án: `pip install -r requirements.txt`
-   *(Lưu ý: File này đã bao gồm đầy đủ thư viện `sentence-transformers` dùng cho AI NLP)*
-4. Khởi tạo cấu trúc Database (Migration):
-   ```bash
-   python manage.py migrate
-   ```
-5. **(Quan trọng) Import dữ liệu địa điểm vào Database:** Ở các phiên bản trước hệ thống dùng file `pois_auto_v2.json`, nhưng hiện tại chúng ta đã thống nhất dùng file dữ liệu đầy đủ vector là `district1_full_data.json`. Chạy lệnh sau để load:
-   ```bash
-   python manage.py import_pois --clear district1_full_data.json
-   ```
-   *(Cờ `--clear` giúp tự động dọn sạch rác trong DB và thay thế bằng tập dữ liệu chuẩn này, đảm bảo ai cấu hình cũng ra cùng 1 source data giống nhau)*
-6. Khởi chạy server: 
-   ```bash
-   python manage.py runserver
-   ```
-   *(Lưu ý nhỏ: Ở lần gọi lộ trình AI đầu tiên, ứng dụng sẽ tải model CLIP từ HuggingFace nặng khoảng hơn 600MB nên có thể mạng cần ổn định, tránh đứt đoạn báo lỗi trả về 1 route.)*
-
-### Bước 4: Khởi động Frontend (React)
-Mở một terminal khác:
-1. Di chuyển vào thư mục frontend: `cd frontend`
-2. Cài đặt thư viện (nếu mới tải lần đầu): `npm install`
-3. Khởi chạy: `npm run dev`
+### 3. Khởi tạo Frontend
+*Mở một Terminal khác và chạy:*
+```bash
+cd frontend && npm install && npm run dev
+```
 
 ---
 
-## 📸 Hình ảnh minh họa & Giao diện
+## 🛠️ Cấu hình chi tiết (Hướng dẫn từng bước)
 
-Hệ thống cung cấp giao diện trực quan với các công cụ quản lý Docker và bản đồ:
+### 🔑 Bước 1: Quản lý biến môi trường (.env)
+Dự án sử dụng cơ chế `.env` để tránh xung đột cổng. 
+- Tìm file `.env` ở thư mục gốc.
+- Nếu bạn bị lỗi `FATAL: password authentication failed`, hãy đổi `DB_PORT=5433` trong file `.env` và restart Docker.
 
-### 1. Quản lý Docker
-Cài docker desktop về máy.
-Bạn có thể quản lý các Service trong Docker extension hoặc qua Dashboard:
+### 🗺️ Bước 2: Dữ liệu nặng (OSRM & Media)
+Do các file bản đồ rất nặng, hãy tải từ [Drive nội bộ](https://drive.google.com/drive/folders/1Tr-oR9hALMCJf4J4a1lRFun6iiOCzWXv) và giải nén đúng vị trí:
+- `osrm_data/` -> Giải nén vào thư mục gốc.
+- `media/` -> Giải nén vào trong `backend/`.
 
-![Ảnh docker extension](./docker_extension.png)
-Thoát ra vào lại vscode.
-![Ảnh chạy docker_compose](./docker_compose.png)
-*(Nhấn Run All Service để khởi động toàn bộ hệ thống)*
-
----
-
-## 💡 Hướng dẫn sử dụng nhanh
-1. **Vị trí bắt đầu:** Click chọn một địa điểm trên bản đồ hoặc tìm kiếm và nhấn **Chọn**.
-2. **Nhập ý định:** Nhập nhu cầu của bạn (VD: "Đi ăn tối lãng mạn") vào ô kế hoạch.
-3. **Gợi ý:** Nhấn nút **"Gợi ý lộ trình"** và chờ AI xử lý trong vài giây.
-4. **Kết quả:** Xem 3 phương án tại tab **Kết quả** và nhấn vào từng lộ trình để xem đường đi trên bản đồ.
+### 🗄️ Bước 3: Cơ sở dữ liệu & AI Search
+Dữ liệu địa điểm được tích hợp sẵn vector 512 chiều để thực hiện tìm kiếm ngữ nghĩa.
+- **Import lệnh:** `python manage.py import_pois --clear data/district1_full_data.json`
 
 ---
 
-## 📝 Tài liệu bổ sung
-- [Hướng dẫn Thuyết trình Kỹ thuật](./technical_presentation_guide.md)
-- [Hướng dẫn Cài đặt OSRM nâng cao](./SETUP_OSRM.md)
+## 📸 Hình ảnh & Kiến trúc
+
+### Sơ đồ Cơ sở dữ liệu (ERD)
+Hệ thống sử dụng **PostgreSQL với extension `pgvector`** để thực hiện truy vấn vector cực nhanh từ model CLIP.
+
+![ERD](./docs/assets/ERD.png)
+
+---
+
+## 💡 Lưu ý quan trọng cho Team
+- **File `.env`**: Tuyệt đối không xóa trong `.gitignore`. File này giúp mỗi người có một cấu hình cổng DB (5432 hoặc 5433) riêng mà không làm hỏng code của nhau.
+- **CLIP Model**: Ở lần đầu chạy tìm kiếm, hệ thống sẽ tải model từ HuggingFace (~600MB). Hãy đảm bảo mạng ổn định.
+
+---
+*Dự án được phát triển bởi N09 - Nhóm Tư duy tính toán.*

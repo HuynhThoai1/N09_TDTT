@@ -24,5 +24,7 @@ frontend/dist/
 
 # OS rác
 .DS_Store
+.gitignore
+.env
 Thumbs.db
 desktop.ini

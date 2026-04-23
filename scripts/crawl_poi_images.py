@@ -9,7 +9,7 @@ from icrawler.builtin import BingImageCrawler
 BBOX = "10.760,106.685,10.785,106.710"
 IMAGE_LIMIT = 3 # Số ảnh mỗi địa điểm
 POI_LIMIT = 50  # Tôi để tạm 50 để chạy thử nhanh, bạn có thể sửa thành 150
-OUTPUT_JSON = 'database/pois_auto_v2.json'
+OUTPUT_JSON = '../backend/data/pois_auto_v2.json'
 IMAGE_BASE_DIR = 'frontend/public/assets/images/locations'
 
 def get_pois_from_osm():
