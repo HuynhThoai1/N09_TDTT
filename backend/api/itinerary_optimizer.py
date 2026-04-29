@@ -358,9 +358,10 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
     # --- CHẾ ĐỘ 2: GỢI Ý Ý TƯỞNG (Chỉ có 1 điểm bắt đầu) ---
     else:
         print(f"[ItineraryOptimizer] Intent-driven mode active for prompt: {prompt_text}")
-        if not time_matrix or not top_bonus:
-            # Fallback nếu không có gợi ý
-            r0_geo = get_route_directions(mandatory_stops)
+        print(f"[ItineraryOptimizer] top_bonus count: {len(top_bonus)}, time_matrix: {'OK' if time_matrix else 'NONE'}")
+        
+        if not top_bonus:
+            # Không có gợi ý AI → trả về mỗi điểm xuất phát
             routes.append({
                 "id": "route_default",
                 "label": "Điểm xuất phát",
@@ -368,6 +369,62 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
                 "waypoints": [{**s, "is_mandatory": True} for s in mandatory_stops],
                 "polyline": None,
                 "duration_text": "0 phút",
+                "distance_text": "0 km",
+            })
+            return routes
+        
+        # Nếu time_matrix bị lỗi → dùng fallback chia theo chủ đề để luôn có 3 route
+        if not time_matrix:
+            print("[ItineraryOptimizer] time_matrix failed! Generating 3 thematic routes as fallback...")
+            
+            # 1. Tinh túy (Top similarity)
+            w1 = mandatory_stops + sorted(top_bonus, key=lambda x: x.get("similarity_score", 0), reverse=True)[:3]
+            g1 = get_route_directions(w1)
+            routes.append({
+                "id": "route_best_match",
+                "label": "Gợi ý: Tinh túy nhất",
+                "theme": "thematic",
+                "description": "Các địa điểm có độ tương đồng cao nhất với yêu cầu của bạn.",
+                "ai_reason": _generate_ai_reason(w1, prompt_text),
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w1)],
+                "polyline": g1["geometry_coords"] if g1 else None,
+                "duration_text": format_duration(g1["total_seconds"]) if g1 else "N/A",
+                "distance_text": format_distance(g1["total_meters"]) if g1 else "N/A",
+                "total_stops": len(w1),
+            })
+
+            # 2. Ẩm thực (Lọc quán ăn/cafe)
+            culinary = [p for p in top_bonus if p.get('category') in ['restaurant', 'cafe', 'bar', 'pub']]
+            w2 = mandatory_stops + (culinary[:3] if culinary else top_bonus[1:4])
+            g2 = get_route_directions(w2)
+            routes.append({
+                "id": "route_culinary",
+                "label": "Gợi ý: Ẩm thực & Thư giãn",
+                "theme": "balanced",
+                "description": "Tập trung vào các trải nghiệm ăn uống và không gian thoải mái.",
+                "ai_reason": f"Ưu tiên các địa điểm ẩm thực phù hợp với không khí '{prompt_text}'.",
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w2)],
+                "polyline": g2["geometry_coords"] if g2 else None,
+                "duration_text": format_duration(g2["total_seconds"]) if g2 else "N/A",
+                "distance_text": format_distance(g2["total_meters"]) if g2 else "N/A",
+                "total_stops": len(w2),
+            })
+
+            # 3. Khám phá (Các điểm tham quan)
+            activity = [p for p in top_bonus if p.get('category') in ['museum', 'attraction', 'viewpoint', 'park']]
+            w3 = mandatory_stops + (activity[:3] if activity else top_bonus[2:5])
+            g3 = get_route_directions(w3)
+            routes.append({
+                "id": "route_activity",
+                "label": "Gợi ý: Khám phá & Trải nghiệm",
+                "theme": "fast",
+                "description": "Hành trình bao gồm các hoạt động vui chơi và tham quan đặc sắc.",
+                "ai_reason": "Kết hợp giữa tham quan và vận động nhẹ nhàng theo nhu cầu của bạn.",
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w3)],
+                "polyline": g3["geometry_coords"] if g3 else None,
+                "duration_text": format_duration(g3["total_seconds"]) if g3 else "N/A",
+                "distance_text": format_distance(g3["total_meters"]) if g3 else "N/A",
+                "total_stops": len(w3),
             })
             return routes
 

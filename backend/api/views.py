@@ -68,25 +68,47 @@ def smartItinerary(request):
     enriched_stops = []
     for s in raw_stops:
         sid = s.get("poi_id") or s.get("id")
+        lat = s.get("latitude")
+        lng = s.get("longitude")
+        
+        # Thử tìm trong DB nội bộ trước
+        loc = None
         try:
             loc = PointOfInterest.objects.filter(poi_id=sid).first() or PointOfInterest.objects.filter(id=sid).first()
-            if loc:
-                enriched_stops.append({
-                    "id": loc.poi_id or str(loc.id),
-                    "poi_id": loc.poi_id,
-                    "name": loc.name,
-                    "latitude": loc.latitude,
-                    "longitude": loc.longitude,
-                    "image": loc.image,
-                    "image_list": loc.image_list,
-                    "description": loc.description,
-                    "category": loc.category,
-                    "address": loc.address
-                })
-            else:
-                enriched_stops.append(s)
         except:
+            pass
+        
+        if loc:
+            enriched_stops.append({
+                "id": loc.poi_id or str(loc.id),
+                "poi_id": loc.poi_id,
+                "name": loc.name,
+                "latitude": loc.latitude,
+                "longitude": loc.longitude,
+                "image": loc.image,
+                "image_list": loc.image_list,
+                "description": loc.description,
+                "category": loc.category,
+                "address": loc.address
+            })
+        elif lat and lng:
+            # Địa điểm từ Goong (không có trong DB) → dùng trực tiếp dữ liệu FE gửi lên
+            enriched_stops.append({
+                "id": sid or f"goong_{lat}_{lng}",
+                "poi_id": sid,
+                "name": s.get("name", "Điểm chọn"),
+                "latitude": float(lat),
+                "longitude": float(lng),
+                "image": "",
+                "image_list": [],
+                "description": s.get("name", ""),
+                "category": "Địa danh",
+                "address": s.get("address", "")
+            })
+        else:
             enriched_stops.append(s)
+    
+    print(f"[SmartItinerary] Enriched {len(enriched_stops)} stops: {[s.get('name') for s in enriched_stops]}")
 
     # --- Bước 1: Tìm kiếm ngữ nghĩa (Semantic Search) ---
     bonus_candidates = []
