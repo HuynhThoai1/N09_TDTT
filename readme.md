@@ -1,3 +1,8 @@
+# 🗺️ AI Itinerary Planner - Hệ thống Lên kế hoạch Hành trình Thông minh
+
+[![Django](https://img.shields.io/badge/Backend-Django_6.0-green?logo=django)](https://www.djangoproject.com/)
+[![React](https://img.shields.io/badge/Frontend-React_18-blue?logo=react)](https://react.dev/)
+[![Docker](https://img.shields.io/badge/Infrastructure-Docker-blue?logo=docker)](https://www.docker.com/)
 [![Goong Maps](https://img.shields.io/badge/Map_SDK-Goong_Maps-orange?logo=google-maps)](https://goong.io/)
 [![AI-CLIP](https://img.shields.io/badge/AI-CLIP_ViT--B--32-orange?logo=pytorch)](https://openai.com/blog/clip/)
 
