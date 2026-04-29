@@ -24,6 +24,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/search-locations/', views.searchLocations, name='api_search_locations'),
     path('api/smart-itinerary/', views.smartItinerary, name='api_smart_itinerary'),
+
+    path('api/goong/autocomplete/', views.goongAutocomplete, name='api_goong_autocomplete'),
+    path('api/goong/place-detail/', views.goongPlaceDetail, name='api_goong_place_detail'),
+    path('api/goong/geocode/', views.goongGeocode, name='api_goong_geocode'),
 ]
 
 if settings.DEBUG:

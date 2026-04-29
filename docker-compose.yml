@@ -15,17 +15,16 @@ services:
       - postgres_data:/var/lib/postgresql/data
     restart: always
 
-  # 2. Engine bản đồ OSRM (Sử dụng dữ liệu trong thư mục ./osrm_data)
-  osrm:
-    image: osrm/osrm-backend
-    container_name: n09_tdtt_osrm
-    ports:
-      - "5000:5000"
-    volumes:
-      - ./osrm_data:/data
-    # Lệnh chạy server sau khi đã giải nén bản đồ vietnam-latest.osrm
-    command: osrm-routed --algorithm mld /data/vietnam-latest.osrm
-    restart: always
+  # 2. Engine bản đồ (Đã tắt do không sử dụng)
+  # osrm:
+  #   image: osrm/osrm-backend
+  #   container_name: n09_tdtt_osrm
+  #   ports:
+  #     - "5000:5000"
+  #   volumes:
+  #     - ./osrm_data:/data
+  #   command: osrm-routed --algorithm mld /data/vietnam-latest.osrm
+  #   restart: always
 
 volumes:
   postgres_data:

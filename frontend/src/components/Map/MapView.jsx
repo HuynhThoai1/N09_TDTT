@@ -40,10 +40,9 @@ const createNumberedMarkerIcon = (index, isLast = false) =>
       display:flex;
       align-items:center;
       justify-content:center;
-      box-shadow:0 3px 10px ${
-				isLast
-					? "rgba(220,38,38,0.45)"
-					: "rgba(37,99,235,0.45)"
+      box-shadow:0 3px 10px ${isLast
+				? "rgba(220,38,38,0.45)"
+				: "rgba(37,99,235,0.45)"
 			};
     ">${index}</div>`,
 		iconSize: [28, 28],
@@ -104,7 +103,7 @@ function MapCamera({ focusedLocation, linePositions, recenterKey }) {
 		if (hasLine) {
 			const latlngs = linePositions.map((p) => L.latLng(p[0], p[1]));
 			const bounds = L.latLngBounds(latlngs);
-			
+
 			// Kiem tra xem bounds hien tai da bao phu het linePositions chua, neu roi thi thoi (tranh rung lac)
 			if (!map.getBounds().contains(bounds) || recenterKey !== prevRecenterKey.current) {
 				map.fitBounds(bounds, {
@@ -115,7 +114,7 @@ function MapCamera({ focusedLocation, linePositions, recenterKey }) {
 				});
 			}
 		}
-		
+
 		prevRecenterKey.current = recenterKey;
 	}, [focusedLocation, linePositions, map, recenterKey]);
 
@@ -141,7 +140,7 @@ export default function MapView({
 	}, [route, shortestPath]);
 
 	const linePositions = useMemo(() => {
-		// Neu route co du lieu polyline thuc te tu OSRM, dung no de ve duong bam theo mat duong
+		// Neu route co du lieu polyline thuc te, dung no de ve duong bam theo mat duong
 		if (route?.polyline && route.polyline.length >= 2) {
 			return route.polyline;
 		}
@@ -161,11 +160,10 @@ export default function MapView({
 							key={key}
 							type="button"
 							onClick={() => setMapStyle(key)}
-							className={`px-3 py-1.5 text-xs rounded-md transition ${
-								active
+							className={`px-3 py-1.5 text-xs rounded-md transition ${active
 									? "bg-blue-600 text-white"
 									: "bg-slate-800 text-slate-300 hover:bg-slate-700"
-							}`}
+								}`}
 						>
 							{cfg.label}
 						</button>
@@ -240,22 +238,22 @@ export default function MapView({
 				)}
 
 				{ordered.map((w, i) => {
-  					const isLast = i === ordered.length - 1;
- 					return (
-    				<Marker
-      					key={`${w.id ?? w.name}-${i}`}
-      					position={[w.latitude, w.longitude]}
-      					icon={createNumberedMarkerIcon(i + 1, isLast)}
-    				>
-      					<Popup autoPan={false}>
-        					<div className="text-sm font-medium">
-          						{i + 1}. {w.name} {isLast ? "(Điểm đến cuối)" : ""}
-        					</div>
-      					</Popup>
-    				</Marker>
-  					);
+					const isLast = i === ordered.length - 1;
+					return (
+						<Marker
+							key={`${w.id ?? w.name}-${i}`}
+							position={[w.latitude, w.longitude]}
+							icon={createNumberedMarkerIcon(i + 1, isLast)}
+						>
+							<Popup autoPan={false}>
+								<div className="text-sm font-medium">
+									{i + 1}. {w.name} {isLast ? "(Điểm đến cuối)" : ""}
+								</div>
+							</Popup>
+						</Marker>
+					);
 				})}
-				
+
 
 				{!route && focusedLocation && (
 					<Marker
@@ -298,11 +296,10 @@ export default function MapView({
 					</button>
 
 					<div
-						className={`absolute top-0 right-0 z-[499] h-full w-[280px] bg-slate-950/90 backdrop-blur-xl border-l border-slate-800 text-slate-100 shadow-2xl transition-transform duration-300 ${
-							routePanelOpen
+						className={`absolute top-0 right-0 z-[499] h-full w-[280px] bg-slate-950/90 backdrop-blur-xl border-l border-slate-800 text-slate-100 shadow-2xl transition-transform duration-300 ${routePanelOpen
 								? "translate-x-0"
 								: "translate-x-full"
-						}`}
+							}`}
 					>
 						<div className="p-4 border-b border-slate-800 flex items-center gap-2">
 							<Route

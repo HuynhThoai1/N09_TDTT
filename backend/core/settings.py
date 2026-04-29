@@ -14,8 +14,9 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+# Load environment variables from .env file (ở thư mục gốc dự án)
+ENV_PATH = Path(__file__).resolve().parent.parent.parent / '.env'
+load_dotenv(ENV_PATH)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
