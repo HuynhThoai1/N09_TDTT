@@ -24,7 +24,7 @@ import { buildMockItinerarySuggestions } from "@/lib/mockItineraries";
 const resolveImageUrl = (path) => {
 	if (!path) return "https://images.unsplash.com/photo-1549416801-92732958742d?q=80&w=1470&auto=format&fit=crop";
 	if (path.startsWith("http")) return path;
-	
+
 	// Tránh double slash khi nối localhost:8000 với path
 	const baseUrl = "http://localhost:8000";
 	const cleanPath = path.startsWith("/") ? path : `/${path}`;
@@ -86,11 +86,21 @@ export default function Sidebar({
 		const delayDebounceFn = setTimeout(async () => {
 			try {
 				const response = await fetch(
-					`http://localhost:8000/api/search-locations/?name=${encodeURIComponent(searchTerm)}`,
+					`http://localhost:8000/api/goong/autocomplete/?input=${encodeURIComponent(searchTerm)}`,
 				);
 				if (response.ok) {
 					const data = await response.json();
-					setSuggestions(data);
+					// Mapping kết quả từ Goong sang format của Frontend
+					const mapped = (data.predictions || []).map((p) => ({
+						id: p.place_id,
+						poi_id: p.place_id,
+						name: p.description,
+						address: p.compound?.address || p.description,
+						latitude: null, // Sẽ lấy tọa độ chi tiết khi người dùng chọn
+						longitude: null,
+						is_goong_place: true,
+					}));
+					setSuggestions(mapped);
 				} else {
 					console.error("Lỗi khi tìm kiếm địa điểm");
 				}
@@ -102,10 +112,35 @@ export default function Sidebar({
 		return () => clearTimeout(delayDebounceFn);
 	}, [searchTerm]);
 
-	const handleSelectLocation = (loc) => {
+	const handleSelectLocation = async (loc) => {
 		isSelectingRef.current = true;
-		setSelectedLocation(loc);
-		setSearchTerm(loc.name);
+
+		// Nếu là địa điểm từ Goong, cần lấy tọa độ chi tiết
+		if (loc.is_goong_place) {
+			try {
+				const response = await fetch(
+					`http://localhost:8000/api/goong/place-detail/?place_id=${loc.poi_id}`,
+				);
+				if (response.ok) {
+					const detail = await response.json();
+					const result = detail.result;
+					const updatedLoc = {
+						...loc,
+						latitude: result.geometry.location.lat,
+						longitude: result.geometry.location.lng,
+						name: result.name, // Lấy tên ngắn gọn
+						address: result.formatted_address,
+					};
+					setSelectedLocation(updatedLoc);
+					setSearchTerm(result.name);
+				}
+			} catch (error) {
+				console.error("Lỗi khi lấy chi tiết địa điểm Goong:", error);
+			}
+		} else {
+			setSelectedLocation(loc);
+			setSearchTerm(loc.name);
+		}
 		setSuggestions([]);
 	};
 
@@ -373,13 +408,12 @@ export default function Sidebar({
 									return (
 										<div
 											key={`${s.id}-${i}`}
-											className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-all group border border-transparent ${
-												isDuplicate
+											className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-all group border border-transparent ${isDuplicate
 													? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
 													: draggingIndex === i
 														? "ring-1 ring-blue-500/70 bg-slate-800"
 														: "hover:bg-slate-800/80 hover:border-slate-700/50 shadow-sm"
-											}`}
+												}`}
 											onDragOver={(e) => {
 												e.preventDefault();
 											}}
@@ -415,11 +449,10 @@ export default function Sidebar({
 													onDragEnd={() =>
 														setDraggingIndex(null)
 													}
-													className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 shadow-inner ${
-														isLast
+													className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 shadow-inner ${isLast
 															? "bg-blue-600 text-white ring-2 ring-blue-400/50 shadow-[0_0_8px_rgba(37,99,235,0.4)]"
 															: "bg-blue-600/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-600 group-hover:text-white cursor-grab active:cursor-grabbing"
-													}`}
+														}`}
 												>
 													<MapPin size={14} />
 												</button>
@@ -500,11 +533,10 @@ export default function Sidebar({
 										disabled={
 											isGenerating || stops.length < 1
 										}
-										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${
-											isGenerating
+										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${isGenerating
 												? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
 												: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
-										}`}
+											}`}
 										onClick={runSmartItinerary}
 									>
 										{isGenerating ? (
@@ -542,7 +574,7 @@ export default function Sidebar({
 												<img
 													src={resolveImageUrl(
 														heroImageOverride ||
-															displayDetail.image,
+														displayDetail.image,
 													)}
 													alt={displayDetail.name}
 													className="object-cover w-full h-full transition-all duration-700 group-hover:scale-110"
@@ -566,7 +598,7 @@ export default function Sidebar({
 										{/* Thông tin thêm: Sub Images */}
 										{displayDetail.image_list &&
 											displayDetail.image_list.length >
-												1 && (
+											1 && (
 												<div className="space-y-2">
 													<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
 														Thông tin thêm
@@ -715,11 +747,11 @@ export default function Sidebar({
 																		>
 																			{idx >
 																				0 && (
-																				<span className="text-slate-600">
-																					{" "}
-																					→{" "}
-																				</span>
-																			)}
+																					<span className="text-slate-600">
+																						{" "}
+																						→{" "}
+																					</span>
+																				)}
 																			<button
 																				type="button"
 																				className="text-blue-300 hover:text-blue-200 hover:underline font-medium"

@@ -9,6 +9,7 @@ from .models import PointOfInterest
 from .serializers import POISerializer
 from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
+from .goong_service import goong_autocomplete, goong_place_detail, goong_geocode, goong_reverse_geocode
 
 # --- HELPER FUNCTIONS ---
 
@@ -67,25 +68,47 @@ def smartItinerary(request):
     enriched_stops = []
     for s in raw_stops:
         sid = s.get("poi_id") or s.get("id")
+        lat = s.get("latitude")
+        lng = s.get("longitude")
+        
+        # Thử tìm trong DB nội bộ trước
+        loc = None
         try:
             loc = PointOfInterest.objects.filter(poi_id=sid).first() or PointOfInterest.objects.filter(id=sid).first()
-            if loc:
-                enriched_stops.append({
-                    "id": loc.poi_id or str(loc.id),
-                    "poi_id": loc.poi_id,
-                    "name": loc.name,
-                    "latitude": loc.latitude,
-                    "longitude": loc.longitude,
-                    "image": loc.image,
-                    "image_list": loc.image_list,
-                    "description": loc.description,
-                    "category": loc.category,
-                    "address": loc.address
-                })
-            else:
-                enriched_stops.append(s)
         except:
+            pass
+        
+        if loc:
+            enriched_stops.append({
+                "id": loc.poi_id or str(loc.id),
+                "poi_id": loc.poi_id,
+                "name": loc.name,
+                "latitude": loc.latitude,
+                "longitude": loc.longitude,
+                "image": loc.image,
+                "image_list": loc.image_list,
+                "description": loc.description,
+                "category": loc.category,
+                "address": loc.address
+            })
+        elif lat and lng:
+            # Địa điểm từ Goong (không có trong DB) → dùng trực tiếp dữ liệu FE gửi lên
+            enriched_stops.append({
+                "id": sid or f"goong_{lat}_{lng}",
+                "poi_id": sid,
+                "name": s.get("name", "Điểm chọn"),
+                "latitude": float(lat),
+                "longitude": float(lng),
+                "image": "",
+                "image_list": [],
+                "description": s.get("name", ""),
+                "category": "Địa danh",
+                "address": s.get("address", "")
+            })
+        else:
             enriched_stops.append(s)
+    
+    print(f"[SmartItinerary] Enriched {len(enriched_stops)} stops: {[s.get('name') for s in enriched_stops]}")
 
     # --- Bước 1: Tìm kiếm ngữ nghĩa (Semantic Search) ---
     bonus_candidates = []
@@ -115,3 +138,61 @@ def smartItinerary(request):
         "bonus_candidates": bonus_candidates[:5], 
         "routes": routes,
     })
+
+
+# --- GOONG MAP API PROXY ---
+
+@api_view(['GET'])
+def goongAutocomplete(request):
+    """
+    API 1: Gợi ý địa điểm khi người dùng gõ tìm kiếm.
+    Sử dụng Goong Place AutoComplete thay thế cho tìm kiếm offline.
+    Query params: ?input=<text>&location=<lat,lng>&limit=<number>
+    """
+    input_text = request.GET.get('input', '').strip()
+    if not input_text:
+        return Response({"error": "Thiếu tham số 'input'."}, status=400)
+
+    location = request.GET.get('location', None)
+    limit = int(request.GET.get('limit', 10))
+    data = goong_autocomplete(input_text, location=location, limit=limit)
+    return Response(data)
+
+
+@api_view(['GET'])
+def goongPlaceDetail(request):
+    """
+    API 2: Lấy thông tin chi tiết của một địa điểm bằng place_id.
+    Sử dụng Goong Place Detail.
+    Query params: ?place_id=<id>
+    """
+    place_id = request.GET.get('place_id', '').strip()
+    if not place_id:
+        return Response({"error": "Thiếu tham số 'place_id'."}, status=400)
+
+    data = goong_place_detail(place_id)
+    return Response(data)
+
+
+@api_view(['GET'])
+def goongGeocode(request):
+    """
+    API 3: Chuyển đổi địa chỉ ↔ tọa độ (Forward & Reverse Geocoding).
+    Sử dụng Goong Geocode.
+    Query params: ?address=<text> HOẶC ?latlng=<lat,lng>
+    """
+    address = request.GET.get('address', '').strip()
+    latlng = request.GET.get('latlng', '').strip()
+
+    if not address and not latlng:
+        return Response({"error": "Cần truyền 'address' hoặc 'latlng'."}, status=400)
+
+    if latlng:
+        parts = latlng.split(',')
+        if len(parts) != 2:
+            return Response({"error": "Định dạng latlng không hợp lệ. VD: 10.7769,106.7009"}, status=400)
+        data = goong_reverse_geocode(parts[0].strip(), parts[1].strip())
+    else:
+        data = goong_geocode(address)
+
+    return Response(data)

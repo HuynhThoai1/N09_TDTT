@@ -2,7 +2,7 @@
 export const LOCATIONS_DB = [
 	{
 		id: 1,
-		name: "Nhà thờ Đức Bà Nhà thờ Đức Bà Nhà thờ Đức Bà",
+		name: "Nhà thờ Đức Bà",
 		address: "Số 1 Công Xã Paris, Phường Bến Nghé, Quận 1",
 		latitude: 10.7798,
 		longitude: 106.6991,

@@ -33,37 +33,79 @@ CATEGORY_MAP = {
     "Place": "Địa điểm tham quan",
 }
 
-# --- OSRM UTILS ---
+# --- GOONG API ADAPTER (thay thế OSRM) ---
+from .goong_service import goong_distance_matrix, goong_directions, decode_polyline
 
 def osrm_table(points: list) -> list[list[float]] | None:
+    """
+    Adapter: Gọi Goong Distance Matrix API thay cho OSRM /table.
+    Giữ nguyên tên hàm để code Genetic Algorithm bên dưới không cần sửa.
+    """
     if len(points) < 2: return None
-    coords = ";".join(f"{p['longitude']},{p['latitude']}" for p in points)
-    url = f"{OSRM_BASE}/table/v1/driving/{coords}?annotations=duration"
-    try:
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        if data.get("code") == "Ok": return data["durations"]
-    except: pass
+    coords = "|".join(f"{p['latitude']},{p['longitude']}" for p in points)
+    
+    data = goong_distance_matrix(origins=coords, destinations=coords)
+    
+    if data and data.get("rows"):
+        matrix = []
+        for row in data["rows"]:
+            row_times = []
+            for element in row.get("elements", []):
+                if element.get("status") == "OK":
+                    row_times.append(float(element.get("duration", {}).get("value", 0)))
+                else:
+                    row_times.append(float("inf"))
+            matrix.append(row_times)
+        return matrix
     return None
 
 def osrm_route(ordered_points: list) -> dict | None:
+    """
+    Adapter: Gọi Goong Directions API thay cho OSRM /route.
+    Goong chỉ hỗ trợ 2 điểm/lần nên ta nối nhiều chặng lại.
+    """
     if len(ordered_points) < 2: return None
-    coords = ";".join(f"{p['longitude']},{p['latitude']}" for p in ordered_points)
-    url = f"{OSRM_BASE}/route/v1/driving/{coords}?overview=full&geometries=geojson"
-    try:
-        resp = requests.get(url, timeout=15)
-        data = resp.json()
-        if data.get("code") == "Ok" and data.get("routes"):
+    
+    total_seconds = 0
+    total_meters = 0
+    full_geometry = []
+    
+    for i in range(len(ordered_points) - 1):
+        origin = f"{ordered_points[i]['latitude']},{ordered_points[i]['longitude']}"
+        destination = f"{ordered_points[i+1]['latitude']},{ordered_points[i+1]['longitude']}"
+        
+        data = goong_directions(origin=origin, destination=destination)
+        if data and data.get("routes"):
             route = data["routes"][0]
-            geojson_coords = route["geometry"]["coordinates"]
-            leaflet_coords = [[c[1], c[0]] for c in geojson_coords]
-            return {
-                "total_seconds": route["duration"],
-                "total_meters": route["distance"],
-                "geometry_coords": leaflet_coords,
-            }
-    except: pass
+            leg = route["legs"][0]
+            total_seconds += leg.get("duration", {}).get("value", 0)
+            total_meters += leg.get("distance", {}).get("value", 0)
+            
+            encoded_polyline = route.get("overview_polyline", {}).get("points", "")
+            if encoded_polyline:
+                decoded = decode_polyline(encoded_polyline)
+                if full_geometry and decoded:
+                    full_geometry.extend(decoded[1:])
+                else:
+                    full_geometry.extend(decoded)
+                    
+    if full_geometry:
+        return {
+            "total_seconds": total_seconds,
+            "total_meters": total_meters,
+            "geometry_coords": full_geometry,
+        }
     return None
+
+# --- HELPER WRAPPERS ---
+
+def get_time_matrix(points: list) -> list[list[float]] | None:
+    """Wrapper gọi osrm_table (giờ dùng Goong Distance Matrix)."""
+    return osrm_table(points)
+
+def get_route_directions(ordered_points: list) -> dict | None:
+    """Wrapper gọi osrm_route (giờ dùng Goong Directions)."""
+    return osrm_route(ordered_points)
 
 # --- GENETIC ALGORITHM OPTIMIZER ---
 
@@ -243,17 +285,17 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
     all_points = mandatory_stops + top_bonus
     
     print(f"\n[Optimizer] --- Bắt đầu tính toán lộ trình ---")
-    t_osrm_table_start = time.time()
-    time_matrix = osrm_table(all_points)
-    print(f"[Optimizer] 1. OSRM Table Matrix: {round(time.time() - t_osrm_table_start, 3)}s")
+    t_table_start = time.time()
+    time_matrix = get_time_matrix(all_points)
+    print(f"[Optimizer] 1. Time Matrix: {round(time.time() - t_table_start, 3)}s")
     
     routes = []
 
     # --- CHẾ ĐỘ 1: TỐI ƯU HÀNH TRÌNH ĐÃ CHỌN (>= 2 điểm) ---
     if len(mandatory_stops) >= 2:
         t0 = time.time()
-        r0_geo = osrm_route(mandatory_stops)
-        print(f"[Optimizer] 2. Route Gốc (OSRM): {round(time.time() - t0, 3)}s")
+        r0_geo = get_route_directions(mandatory_stops)
+        print(f"[Optimizer] 2. Route Gốc: {round(time.time() - t0, 3)}s")
 
         routes.append({
             "id": "route_default",
@@ -275,8 +317,8 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
         optimizer_r1 = GeneticOptimizer(mandatory_stops, [], time_matrix, all_points, max_bonus=0)
         r1_waypoints = optimizer_r1.solve()
         t1_ga = time.time()
-        r1_geo = osrm_route(r1_waypoints)
-        print(f"[Optimizer] 3. Route Fast: {round(t1_ga - t1_start, 3)}s (GA) + {round(time.time() - t1_ga, 3)}s (OSRM)")
+        r1_geo = get_route_directions(r1_waypoints)
+        print(f"[Optimizer] 3. Route Fast: {round(t1_ga - t1_start, 3)}s (GA) + {round(time.time() - t1_ga, 3)}s (Routing)")
 
         routes.append({
             "id": "route_fast",
@@ -298,8 +340,8 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
             r2_waypoints = optimizer_r2.solve()
             t2_ga = time.time()
             if r2_waypoints:
-                r2_geo = osrm_route(r2_waypoints)
-                print(f"[Optimizer] 4. Route Discovery: {round(t2_ga - t2_start, 3)}s (GA) + {round(time.time() - t2_ga, 3)}s (OSRM)")
+                r2_geo = get_route_directions(r2_waypoints)
+                print(f"[Optimizer] 4. Route Discovery: {round(t2_ga - t2_start, 3)}s (GA) + {round(time.time() - t2_ga, 3)}s (Routing)")
                 routes.append({
                     "id": "route_thematic",
                     "label": "AI Gợi ý (Khám phá)",
@@ -316,9 +358,10 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
     # --- CHẾ ĐỘ 2: GỢI Ý Ý TƯỞNG (Chỉ có 1 điểm bắt đầu) ---
     else:
         print(f"[ItineraryOptimizer] Intent-driven mode active for prompt: {prompt_text}")
-        if not time_matrix or not top_bonus:
-            # Fallback nếu không có gợi ý
-            r0_geo = osrm_route(mandatory_stops)
+        print(f"[ItineraryOptimizer] top_bonus count: {len(top_bonus)}, time_matrix: {'OK' if time_matrix else 'NONE'}")
+        
+        if not top_bonus:
+            # Không có gợi ý AI → trả về mỗi điểm xuất phát
             routes.append({
                 "id": "route_default",
                 "label": "Điểm xuất phát",
@@ -326,6 +369,62 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
                 "waypoints": [{**s, "is_mandatory": True} for s in mandatory_stops],
                 "polyline": None,
                 "duration_text": "0 phút",
+                "distance_text": "0 km",
+            })
+            return routes
+        
+        # Nếu time_matrix bị lỗi → dùng fallback chia theo chủ đề để luôn có 3 route
+        if not time_matrix:
+            print("[ItineraryOptimizer] time_matrix failed! Generating 3 thematic routes as fallback...")
+            
+            # 1. Tinh túy (Top similarity)
+            w1 = mandatory_stops + sorted(top_bonus, key=lambda x: x.get("similarity_score", 0), reverse=True)[:3]
+            g1 = get_route_directions(w1)
+            routes.append({
+                "id": "route_best_match",
+                "label": "Gợi ý: Tinh túy nhất",
+                "theme": "thematic",
+                "description": "Các địa điểm có độ tương đồng cao nhất với yêu cầu của bạn.",
+                "ai_reason": _generate_ai_reason(w1, prompt_text),
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w1)],
+                "polyline": g1["geometry_coords"] if g1 else None,
+                "duration_text": format_duration(g1["total_seconds"]) if g1 else "N/A",
+                "distance_text": format_distance(g1["total_meters"]) if g1 else "N/A",
+                "total_stops": len(w1),
+            })
+
+            # 2. Ẩm thực (Lọc quán ăn/cafe)
+            culinary = [p for p in top_bonus if p.get('category') in ['restaurant', 'cafe', 'bar', 'pub']]
+            w2 = mandatory_stops + (culinary[:3] if culinary else top_bonus[1:4])
+            g2 = get_route_directions(w2)
+            routes.append({
+                "id": "route_culinary",
+                "label": "Gợi ý: Ẩm thực & Thư giãn",
+                "theme": "balanced",
+                "description": "Tập trung vào các trải nghiệm ăn uống và không gian thoải mái.",
+                "ai_reason": f"Ưu tiên các địa điểm ẩm thực phù hợp với không khí '{prompt_text}'.",
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w2)],
+                "polyline": g2["geometry_coords"] if g2 else None,
+                "duration_text": format_duration(g2["total_seconds"]) if g2 else "N/A",
+                "distance_text": format_distance(g2["total_meters"]) if g2 else "N/A",
+                "total_stops": len(w2),
+            })
+
+            # 3. Khám phá (Các điểm tham quan)
+            activity = [p for p in top_bonus if p.get('category') in ['museum', 'attraction', 'viewpoint', 'park']]
+            w3 = mandatory_stops + (activity[:3] if activity else top_bonus[2:5])
+            g3 = get_route_directions(w3)
+            routes.append({
+                "id": "route_activity",
+                "label": "Gợi ý: Khám phá & Trải nghiệm",
+                "theme": "fast",
+                "description": "Hành trình bao gồm các hoạt động vui chơi và tham quan đặc sắc.",
+                "ai_reason": "Kết hợp giữa tham quan và vận động nhẹ nhàng theo nhu cầu của bạn.",
+                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w3)],
+                "polyline": g3["geometry_coords"] if g3 else None,
+                "duration_text": format_duration(g3["total_seconds"]) if g3 else "N/A",
+                "distance_text": format_distance(g3["total_meters"]) if g3 else "N/A",
+                "total_stops": len(w3),
             })
             return routes
 
@@ -336,7 +435,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
         # 1. Route Tinh túy (Best Similarity)
         opt1 = GeneticOptimizer(mandatory_stops, top_bonus[:8], time_matrix, all_points, max_bonus=2)
         w1 = opt1.solve()
-        g1 = osrm_route(w1)
+        g1 = get_route_directions(w1)
         routes.append({
             "id": "route_best_match",
             "label": "Gợi ý: Tinh túy nhất",
@@ -354,7 +453,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
         cands2 = culinary_cands[:10] if culinary_cands else top_bonus[:10]
         opt2 = GeneticOptimizer(mandatory_stops, cands2, time_matrix, all_points, max_bonus=3)
         w2 = opt2.solve()
-        g2 = osrm_route(w2)
+        g2 = get_route_directions(w2)
         routes.append({
             "id": "route_culinary",
             "label": "Gợi ý: Ẩm thực & Thư giãn",
@@ -373,7 +472,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
         cands3 = activity_cands[:10] if activity_cands else top_bonus[5:15]
         opt3 = GeneticOptimizer(mandatory_stops, cands3, time_matrix, all_points, max_bonus=3)
         w3 = opt3.solve()
-        g3 = osrm_route(w3)
+        g3 = get_route_directions(w3)
         print(f"[Optimizer] Proposal Mode complete: {round(time.time() - t_proposal_start, 3)}s total for 3 routes.")
         routes.append({
             "id": "route_activity",

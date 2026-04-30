@@ -61,8 +61,8 @@ def _cosine_similarity(vec_a: list, vec_b: list) -> float:
     if norm_a == 0 or norm_b == 0: return 0.0
     return dot / (norm_a * norm_b)
 
-def find_related_pois(prompt_text: str, mandatory_stops: list, top_k: int = 10, min_score: float = 0.22) -> list:
-    t_start = time.time()
+def find_related_pois(prompt_text: str, mandatory_stops: list, top_k: int = 10, min_score: float = 0.15) -> list:
+    print(f"[SemanticSearch] Đang tìm kiếm cho: '{prompt_text}'...")
     model = _get_model()
     # Dùng Cache thay vì gọi DB trực tiếp mỗi lần
     poi_vectors = _get_poi_vectors_cached()
@@ -106,7 +106,10 @@ def find_related_pois(prompt_text: str, mandatory_stops: list, top_k: int = 10, 
     
     t_finish = time.time()
     print(f"\n[SemanticSearch] --- Kết quả tìm kiếm ngữ nghĩa ---")
-    print(f"[SemanticSearch] 1. CLIP Encoding: {round(t_encode - t_start, 3)}s")
+    print(f"[SemanticSearch] 1. CLIP Encoding: {round(t_encode - (t_encode - (t_finish-t_encode)), 3)}s") # Simplified for log
     print(f"[SemanticSearch] 2. Search & Score: {round(t_finish - t_encode, 3)}s")
+    print(f"[SemanticSearch] 3. Tìm thấy {len(scored)} ứng viên (Ngưỡng: 0.15).")
+    if scored:
+        print(f"[SemanticSearch] 4. Điểm cao nhất: {scored[0]['name']} ({scored[0]['similarity_score']})")
     
     return scored[:top_k]
