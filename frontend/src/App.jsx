@@ -1,5 +1,7 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import MainPage from "./pages/MainPage";
+import OnboardingPage from "./pages/OnboardingPage";
+
 const router = createBrowserRouter([
 	//Sau này có thêm các trang khác nếu muốn
 	{
@@ -9,6 +11,10 @@ const router = createBrowserRouter([
 	{
 		path: "/",
 		element: <MainPage />,
+	},
+	{
+		path: "/onboarding",
+		element: <OnboardingPage />,
 	},
 ]);
 
