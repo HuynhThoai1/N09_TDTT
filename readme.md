@@ -50,29 +50,26 @@ docker compose up -d
 
 ### 2. Backend (Dành cho Bash/Git Bash)
 
-**A. Cài đặt ban đầu (Chỉ chạy 1 lần duy nhất khi mới clone hoặc có data mới):**
+**A. Thiết lập & Cập nhật dữ liệu (Chạy khi mới clone hoặc có tính năng mới):**
 ```bash
-cd backend
+cd backend && \
+source ./venv/Scripts/activate && \
+pip install -r requirements.txt && \
+python manage.py makemigrations && \
+python manage.py migrate && \
+python manage.py import_pois --clear data/district1_full_data.json && \
+python manage.py import_vibes
+```
 
-source ./venv/Scripts/activate
-
-pip install -r requirements.txt
-
-python manage.py migrate
-
-python manage.py import_pois --clear data/district1_full_data.json
-
-python manage.py runserver
+**B. Khởi động Server hàng ngày:**
+```bash
+cd backend && source ./venv/Scripts/activate && python manage.py runserver
 ```
 
 ### 3. Frontend
 *Chạy tại thư mục gốc:*
 ```bash
-cd frontend 
-
-npm install 
-
-npm run dev
+cd frontend && npm install && npm run dev
 ```
 
 ---
