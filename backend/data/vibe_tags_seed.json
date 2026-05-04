@@ -1,0 +1,80 @@
+[
+    {
+        "category": "khong_gian",
+        "label": "Yêu thiên nhiên",
+        "prompt_keyword": "công viên, cây xanh, hồ nước, không gian ngoài trời thoáng đãng",
+        "icon": "🌿"
+    },
+    {
+        "category": "khong_gian",
+        "label": "Thích yên tĩnh",
+        "prompt_keyword": "yên tĩnh, ít người, không gian thư giãn, tránh ồn ào náo nhiệt",
+        "icon": "🤫"
+    },
+    {
+        "category": "khong_gian",
+        "label": "Phố xá nhộn nhịp",
+        "prompt_keyword": "trung tâm thành phố, đông đúc, phố đi bộ, năng động sôi nổi",
+        "icon": "🏙️"
+    },
+    {
+        "category": "am_thuc",
+        "label": "Nghiện Cafe",
+        "prompt_keyword": "quán cà phê, không gian chill, đồ uống, cafe view đẹp, ngồi làm việc",
+        "icon": "☕"
+    },
+    {
+        "category": "am_thuc",
+        "label": "Món đường phố",
+        "prompt_keyword": "ăn vặt, quán vỉa hè, món ăn địa phương, bình dân, hẻm phố",
+        "icon": "🍜"
+    },
+    {
+        "category": "am_thuc",
+        "label": "Fine Dining",
+        "prompt_keyword": "nhà hàng cao cấp, không gian sang trọng, ẩm thực tinh tế",
+        "icon": "🍽️"
+    },
+    {
+        "category": "van_hoa",
+        "label": "Đam mê Lịch sử",
+        "prompt_keyword": "di tích lịch sử, bảo tàng, kiến trúc cổ, Dinh Độc Lập, Bưu Điện Trung Tâm",
+        "icon": "🏛️"
+    },
+    {
+        "category": "van_hoa",
+        "label": "Yêu Nghệ thuật",
+        "prompt_keyword": "gallery, triển lãm tranh, nghệ thuật đương đại, mural, không gian sáng tạo",
+        "icon": "🎨"
+    },
+    {
+        "category": "van_hoa",
+        "label": "Tín ngưỡng Tâm linh",
+        "prompt_keyword": "chùa, nhà thờ, đền, không gian tâm linh, thanh tịnh",
+        "icon": "🙏"
+    },
+    {
+        "category": "hoat_dong",
+        "label": "Thích Khám phá",
+        "prompt_keyword": "địa điểm mới lạ, ít người biết, hidden gem, trải nghiệm độc đáo",
+        "icon": "🧭"
+    },
+    {
+        "category": "hoat_dong",
+        "label": "Mua sắm",
+        "prompt_keyword": "trung tâm thương mại, chợ, shop thời trang, mua sắm",
+        "icon": "🛍️"
+    },
+    {
+        "category": "thoi_gian",
+        "label": "Đi chơi buổi tối",
+        "prompt_keyword": "mở cửa buổi tối, có đèn lung linh, nightlife, không gian về đêm",
+        "icon": "🌙"
+    },
+    {
+        "category": "thoi_gian",
+        "label": "Buổi sáng sớm",
+        "prompt_keyword": "mở cửa sáng sớm, tập thể dục, chợ sáng, không khí trong lành",
+        "icon": "🌅"
+    }
+]

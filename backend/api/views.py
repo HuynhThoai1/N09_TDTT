@@ -2,16 +2,30 @@ import sys
 import json
 from pathlib import Path
 from django.conf import settings
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 
-from .models import PointOfInterest
-from .serializers import POISerializer
+from .models import PointOfInterest, VibeTag, UserProfile
+from .serializers import POISerializer, VibeTagSerializer, UserProfileSerializer, UserVibeUpdateSerializer
 from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
 from .goong_service import goong_autocomplete, goong_place_detail, goong_geocode, goong_reverse_geocode
 
 # --- HELPER FUNCTIONS ---
+
+def _build_prompt_with_vibes(user, prompt_text):
+    """
+    Bí mật lấy sở thích của người dùng từ DB và nối vào prompt.
+    Ví dụ: "Tôi muốn đi dạo Quận 1. Ưu tiên: di tích lịch sử, bảo tàng, yên tĩnh"
+    """
+    try:
+        vibe_context = user.profile.get_prompt_context()
+        if vibe_context:
+            return f"{prompt_text}. {vibe_context}"
+    except Exception:
+        pass  # Người dùng chưa đăng nhập hoặc chưa chọn vibe → fallback bình thường
+    return prompt_text
 
 def _fix_image_path(request, p):
     """Sửa lỗi đường dẫn ảnh (assets -> media) và đảm bảo có domain."""
@@ -21,6 +35,55 @@ def _fix_image_path(request, p):
     clean_p = str(p).replace("assets/images", "media").replace("http://localhost:8000/", "").lstrip('/')
     return f"{base_url}/{clean_p}"
 
+# --- VIBE API VIEWS ---
+
+@api_view(['GET'])
+def getVibeTags(request):
+    """
+    API lấy toàn bộ thẻ sở thích, nhóm theo category.
+    Dùng cho màn hình Onboarding sau khi đăng ký.
+    GET /api/vibes/
+    """
+    tags = VibeTag.objects.all()
+
+    grouped = {}
+    for tag in tags:
+        cat_key   = tag.category
+        cat_label = tag.get_category_display()
+
+        if cat_key not in grouped:
+            grouped[cat_key] = {
+                "category_key":   cat_key,
+                "category_label": cat_label,
+                "tags": []
+            }
+        grouped[cat_key]["tags"].append(VibeTagSerializer(tag).data)
+
+    return Response(list(grouped.values()))
+
+
+@api_view(['GET', 'POST'])
+def userVibes(request):
+    """
+    GET  — Xem thẻ vibe hiện tại (dùng cho Sidebar / Profile).
+    POST — Lưu lựa chọn mới (dùng cho màn hình Onboarding).
+    /api/profile/vibes/
+    """
+    if request.method == 'GET':
+            if not request.user.is_authenticated:
+                return Response({"vibes": []})
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            serializer = UserProfileSerializer(profile)
+            return Response(serializer.data)
+
+    if request.method == 'POST':
+        serializer = UserVibeUpdateSerializer(data=request.data)
+        if serializer.is_valid():
+            if not request.user.is_authenticated:
+                return Response({"message": "Đã lưu sở thích tạm thời!"})
+            serializer.save(user=request.user)
+            return Response({"message": "Đã lưu sở thích thành công!"})
+        return Response(serializer.errors, status=400)
 
 # --- API VIEWS ---
 
@@ -63,6 +126,9 @@ def smartItinerary(request):
 
     if len(raw_stops) < 1:
         return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
+
+    if request.user.is_authenticated:
+        prompt_text = _build_prompt_with_vibes(request.user, prompt_text)
 
     # --- Bước 0: Làm giàu dữ liệu Stops từ Database ---
     enriched_stops = []
@@ -196,3 +262,5 @@ def goongGeocode(request):
         data = goong_geocode(address)
 
     return Response(data)
+
+# --- Vibe Tags ---
