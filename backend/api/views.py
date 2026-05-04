@@ -1,11 +1,12 @@
 import sys
 import json
 from pathlib import Path
+from django.shortcuts import get_object_or_404
 from django.conf import settings
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
-from .models import PointOfInterest
+from .models import PointOfInterest, SharedRoute
 from .serializers import POISerializer
 from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
@@ -137,6 +138,54 @@ def smartItinerary(request):
         "prompt_text": prompt_text,
         "bonus_candidates": bonus_candidates[:5], 
         "routes": routes,
+    })
+
+
+@api_view(['POST'])
+def createSharedRoute(request):
+    """Tạo route chia sẻ public và trả về share_id + share_url."""
+    data = request.data or {}
+    route = data.get('route') or data.get('selectedRoute')
+
+    if not route:
+        return Response({"status": "error", "message": "Thiếu dữ liệu route."}, status=400)
+
+    route_payload = {
+        "route": route,
+        "stops": data.get('stops', []),
+        "prompt_text": (data.get('prompt_text') or '').strip(),
+        "created_from": data.get('created_from', 'frontend'),
+    }
+
+    shared_route = SharedRoute.objects.create(
+        route_data=route_payload,
+        creator_ip=request.META.get('REMOTE_ADDR'),
+    )
+
+    return Response({
+        "status": "success",
+        "share_id": shared_route.share_id,
+        "share_url": request.build_absolute_uri(f"/share/{shared_route.share_id}"),
+        "route_data": shared_route.route_data,
+        "created_at": shared_route.created_at,
+    }, status=201)
+
+
+@api_view(['GET'])
+def getSharedRoute(request, share_id):
+    """Lấy dữ liệu route chia sẻ ở chế độ chỉ đọc."""
+    shared_route = get_object_or_404(SharedRoute, share_id=share_id)
+
+    shared_route.view_count += 1
+    shared_route.save(update_fields=['view_count'])
+
+    return Response({
+        "status": "success",
+        "share_id": shared_route.share_id,
+        "share_url": request.build_absolute_uri(f"/share/{shared_route.share_id}"),
+        "route_data": shared_route.route_data,
+        "created_at": shared_route.created_at,
+        "view_count": shared_route.view_count,
     })
 
 

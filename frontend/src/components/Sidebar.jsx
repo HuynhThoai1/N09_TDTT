@@ -18,15 +18,22 @@ import {
 	Sparkles,
 	BrainCircuit,
 	MapPinned,
+	Share2,
+	Check,
 } from "lucide-react";
 import { buildMockItinerarySuggestions } from "@/lib/mockItineraries";
+
+const getApiBase = () => {
+	if (typeof window === "undefined") return "http://localhost:8000";
+	return `${window.location.protocol}//${window.location.hostname}:8000`;
+};
 
 const resolveImageUrl = (path) => {
 	if (!path) return "https://images.unsplash.com/photo-1549416801-92732958742d?q=80&w=1470&auto=format&fit=crop";
 	if (path.startsWith("http")) return path;
 
-	// Tránh double slash khi nối localhost:8000 với path
-	const baseUrl = "http://localhost:8000";
+	// Tránh double slash khi nối API host với path
+	const baseUrl = getApiBase();
 	const cleanPath = path.startsWith("/") ? path : `/${path}`;
 	return `${baseUrl}${cleanPath}`;
 };
@@ -60,6 +67,7 @@ export default function Sidebar({
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [duplicateId, setDuplicateId] = useState(null);
 	const [previewImage, setPreviewImage] = useState(null);
+	const [shareState, setShareState] = useState({ routeId: null, status: "idle", message: "" });
 	const isSelectingRef = useRef(false);
 
 	const handleSearchChange = (e) => {
@@ -86,7 +94,7 @@ export default function Sidebar({
 		const delayDebounceFn = setTimeout(async () => {
 			try {
 				const response = await fetch(
-					`http://localhost:8000/api/goong/autocomplete/?input=${encodeURIComponent(searchTerm)}`,
+					`${getApiBase()}/api/goong/autocomplete/?input=${encodeURIComponent(searchTerm)}`,
 				);
 				if (response.ok) {
 					const data = await response.json();
@@ -119,7 +127,7 @@ export default function Sidebar({
 		if (loc.is_goong_place) {
 			try {
 				const response = await fetch(
-					`http://localhost:8000/api/goong/place-detail/?place_id=${loc.poi_id}`,
+					`${getApiBase()}/api/goong/place-detail/?place_id=${loc.poi_id}`,
 				);
 				if (response.ok) {
 					const detail = await response.json();
@@ -192,7 +200,7 @@ export default function Sidebar({
 
 		try {
 			const response = await fetch(
-				"http://localhost:8000/api/smart-itinerary/",
+				`${getApiBase()}/api/smart-itinerary/`,
 				{
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
@@ -254,6 +262,40 @@ export default function Sidebar({
 		setSelectedSuggestionId(route.id);
 		onSelectedRouteChange(route);
 		onFocusLocation(null);
+	};
+
+	const handleShareRoute = async (route) => {
+		try {
+			setShareState({ routeId: route.id, status: "loading", message: "Đang tạo link chia sẻ..." });
+			const response = await fetch(`${getApiBase()}/api/shared-routes/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					route,
+					stops,
+					prompt_text: goalText.trim(),
+					created_from: "frontend",
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const result = await response.json();
+			const shareUrl = `${window.location.origin}/share/${result.share_id}`;
+
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+			} catch {
+				window.prompt("Copy link chia sẻ", shareUrl);
+			}
+
+			setShareState({ routeId: route.id, status: "success", message: "Đã tạo link và copy vào clipboard." });
+		} catch (error) {
+			console.error("Lỗi khi tạo shared route:", error);
+			setShareState({ routeId: route.id, status: "error", message: "Không tạo được link chia sẻ." });
+		}
 	};
 
 	const handleReview = () => {
@@ -725,16 +767,32 @@ export default function Sidebar({
 																<h3 className="text-sm font-semibold text-slate-100">
 																	{r.label}
 																</h3>
-																<span className="text-[10px] uppercase text-slate-500 shrink-0">
-																	{
-																		r.totalDuration
-																	}{" "}
-																	·{" "}
-																	{
-																		r.totalDistance
-																	}
-																</span>
+																<div className="flex items-center gap-2 shrink-0">
+																	<span className="text-[10px] uppercase text-slate-500 shrink-0">
+																		{r.totalDuration} · {r.totalDistance}
+																	</span>
+																	<Button
+																		type="button"
+																		variant="outline"
+																		size="xs"
+																		onClick={() => handleShareRoute(r)}
+																		disabled={shareState.routeId === r.id && shareState.status === "loading"}
+																		className="border-slate-700 bg-slate-800/90 text-slate-100 hover:bg-slate-700"
+																	>
+																		{shareState.routeId === r.id && shareState.status === "success" ? (
+																			<Check size={12} className="mr-1" />
+																		) : (
+																			<Share2 size={12} className="mr-1" />
+																		)}
+																		Chia sẻ
+																	</Button>
+																</div>
 															</div>
+															{shareState.routeId === r.id && shareState.message && (
+																<p className={`text-[11px] ${shareState.status === "error" ? "text-red-400" : "text-emerald-400"}`}>
+																	{shareState.message}
+																</p>
+															)}
 
 															<p className="text-xs text-slate-400 leading-relaxed">
 																{r.waypoints.map(

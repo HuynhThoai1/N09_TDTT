@@ -15,7 +15,7 @@ export default defineConfig({
 		headers: {
 			"Cross-Origin-Opener-Policy": "same-origin-allow-popups",
 		},
-		host: "127.0.0.1", // Ép Vite chạy trên IP thay vì tên localhost
+		host: "0.0.0.0", // Cho phép truy cập từ thiết bị khác trong cùng mạng
 		port: 5173,
 	},
 });
