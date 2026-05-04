@@ -1,30 +1,83 @@
-# Python (Backend & AI)
-**/venv/
-**/__pycache__/
-*.pyc
+# --- Python (Backend & AI) ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.venv/
+venv/
+ENV/
+
+# --- Django ---
+*.log
+local_settings.py
 db.sqlite3
-.env
+db.sqlite3-journal
+media/
+backend/media/
+**/migrations/__pycache__/
 
-# Node.js (Frontend)
-**/node_modules/
+# --- Node.js (Frontend) ---
+node_modules/
+frontend/node_modules/
 frontend/dist/
-.env.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.eslintcache
 
-# Dữ liệu bản đồ & OSRM (Rất nặng)
-/osrm_data/
+# --- Environment Files ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+backend/.env
+frontend/.env
+
+# --- Infrastructure & Heavy Data ---
+osrm_data/
 *.osrm*
 *.pbf
+scripts/__pycache__/
+ai_engine/__pycache__/
 
-# Dữ liệu ảnh & Model (Nặng hoặc rác)
-/backend/media/
-/frontend/public/assets/images/locations/
+# --- AI Models & Heavy Assets ---
 *.pt
 *.bin
 *.h5
+*.onnx
+frontend/public/assets/images/locations/
 
-# OS rác
+# --- IDEs & Editors ---
+.vscode/
+.idea/
+*.swp
+*.swo
+.project
+.pydevproject
+.settings/
+
+# --- OS Specific ---
 .DS_Store
-.gitignore
-.env
+.DS_Store?
+._*
 Thumbs.db
 desktop.ini

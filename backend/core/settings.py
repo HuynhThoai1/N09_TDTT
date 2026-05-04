@@ -14,13 +14,14 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (ở thư mục gốc dự án)
-ENV_PATH = Path(__file__).resolve().parent.parent.parent / '.env'
-load_dotenv(ENV_PATH)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables (Ưu tiên backend/.env, sau đó mới đến root .env)
+load_dotenv(os.path.join(BASE_DIR, '.env')) # backend/.env
+load_dotenv(os.path.join(BASE_DIR, '..', '.env')) # root .env
 
 
 # Quick-start development settings - unsuitable for production
