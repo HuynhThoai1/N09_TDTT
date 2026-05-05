@@ -10,7 +10,7 @@ Hệ thống ứng dụng **Goong Maps SDK chính chủ** kết hợp với trí
 
 ---
 
-## 📂 Cấu trúc dự án (Refined)
+## 📂 Cấu trúc dự án
 
 ```text
 N09_TDTT/
@@ -27,67 +27,62 @@ N09_TDTT/
 
 ---
 
-## ⚡ Cài đặt nhanh (Quick Setup)
+## 🛠️ Bước 1: Cấu hình API Key (Bắt buộc trước khi chạy)
 
-Dành cho các thành viên muốn khởi chạy dự án ngay lập tức. Hãy copy và dán toàn bộ các khối lệnh bên dưới vào Terminal.
+Dự án sử dụng hệ sinh thái Goong Maps. Bạn cần chuẩn bị các Key sau:
 
-### 1. Chuẩn bị Hạ tầng (Docker & Env)
+1.  **Backend:** Copy file `backend/.env.example` thành `backend/.env` và điền `GOONG_API_KEY` (Key này dùng để tính toán lộ trình).
+2.  **Frontend:** Copy file `frontend/.env.example` thành `frontend/.env` và điền `VITE_GOONG_MAPTILES_KEY` (Key này dùng để hiển thị nền bản đồ).
+3.  **Docker:** Tại thư mục gốc, copy `.env.example` thành `.env` để cấu hình cổng Database.
+
+> [!TIP]
+> Nếu bạn bị lỗi xung đột cổng 5432 trên Windows, hãy sửa `DB_PORT=5433` trong các file `.env` trước khi khởi động Docker.
+
+---
+
+## ⚡ Bước 2: Khởi chạy dự án (Quick Setup)
+
+### 1. Hạ tầng (Docker)
 *Chạy tại thư mục gốc:*
 ```bash
-# Tạo file cấu hình từ mẫu, điền GOONG_API_KEY vào .env, rồi khởi động Docker
-cp .env.example .env && docker compose up -d
+docker compose up -d
 ```
 
-### 2. Khởi tạo Backend (Dành cho Bash/Git Bash)
-*Mở một Terminal mới và chạy:*
+### 2. Backend (Dành cho Bash/Git Bash)
+
+**A. Thiết lập & Cập nhật dữ liệu (Chạy khi mới clone hoặc có tính năng mới):**
 ```bash
 cd backend && \
 source ./venv/Scripts/activate && \
 pip install -r requirements.txt && \
+python manage.py makemigrations && \
 python manage.py migrate && \
 python manage.py import_pois --clear data/district1_full_data.json && \
-python manage.py runserver
+python manage.py import_vibes
 ```
 
-### 3. Khởi tạo Frontend
-*Mở một Terminal khác và chạy:*
+**B. Khởi động Server hàng ngày:**
+```bash
+cd backend && source ./venv/Scripts/activate && python manage.py runserver
+```
+
+### 3. Frontend
+*Chạy tại thư mục gốc:*
 ```bash
 cd frontend && npm install && npm run dev
 ```
 
 ---
 
-## 🛠️ Cấu hình chi tiết (Hướng dẫn từng bước)
+## 📦 Dữ liệu nặng (OSRM & Media)
 
-### 🔑 Bước 1: Cấu hình API Key (Bắt buộc cho Team)
-Dự án sử dụng hệ sinh thái Goong Maps. Mỗi thành viên cần thực hiện 2 bước sau để chạy được bản đồ:
-
-1.  **Cấu hình Backend:**
-    - Tại thư mục `backend/`, copy file `.env.example` thành `.env`.
-    - Điền `GOONG_API_KEY` (Lấy tại mục **API Key** trên Goong Dashboard). Key này dùng để tính toán lộ trình và tìm kiếm.
-
-2.  **Cấu hình Frontend:**
-    - Tại thư mục `frontend/`, copy file `.env.example` thành `.env`.
-    - Điền `VITE_GOONG_MAPTILES_KEY` (Lấy tại mục **MapTiles Key** trên Goong Dashboard). Key này dùng để hiển thị nền bản đồ.
-
-*Lưu ý: Các file `.env` đã được cấu hình trong `.gitignore` để không bị đẩy lên GitHub, giúp bảo mật Key cá nhân của mỗi thành viên.*
-
-### 🗄️ Bước 2: Cơ sở dữ liệu & AI Search
-Dữ liệu địa điểm được tích hợp sẵn vector 512 chiều để thực hiện tìm kiếm ngữ nghĩa.
-- **Import lệnh:** `python manage.py import_pois --clear data/district1_full_data.json`
+Do các file bản đồ và ảnh rất nặng, hãy tải từ [Drive nội bộ](https://drive.google.com/drive/folders/1Tr-oR9hALMCJf4J4a1lRFun6iiOCzWXv) và giải nén:
+- `osrm_data/` -> Giải nén vào thư mục gốc dự án.
+- `media/` -> Giải nén vào trong thư mục `backend/`.
 
 ---
 
-## 📸 Hình ảnh & Kiến trúc
-
-### Sơ đồ Cơ sở dữ liệu (ERD)
-Hệ thống sử dụng **PostgreSQL với extension `pgvector`** để thực hiện truy vấn vector cực nhanh từ model CLIP.
-
-![ERD](./docs/assets/ERD.png)
-
----
-
-## 💡 Lưu ý quan trọng cho Team
+## 💡 Lưu ý quan trọng
 - **File `.env`**: Tuyệt đối không xóa trong `.gitignore`. File này chứa `GOONG_API_KEY` và cấu hình DB riêng cho từng người, không push key cá nhân lên GitHub.
 - **Goong API Key**: Mỗi thành viên tự đăng ký tài khoản tại [Goong.io](https://goong.io/) và lấy **REST API Key** rồi điền vào file `.env` của mình.
 - **CLIP Model**: Ở lần đầu chạy tìm kiếm, hệ thống sẽ tải model từ HuggingFace (~600MB). Hãy đảm bảo mạng ổn định.

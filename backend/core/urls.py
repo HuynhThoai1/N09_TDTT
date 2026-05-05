@@ -30,6 +30,9 @@ urlpatterns = [
     path('api/goong/autocomplete/', views.goongAutocomplete, name='api_goong_autocomplete'),
     path('api/goong/place-detail/', views.goongPlaceDetail, name='api_goong_place_detail'),
     path('api/goong/geocode/', views.goongGeocode, name='api_goong_geocode'),
+    
+    path('api/vibes/',          views.getVibeTags, name='api_get_vibe_tags'),
+    path('api/profile/vibes/',  views.userVibes,   name='api_user_vibes')
 ]
 
 if settings.DEBUG:

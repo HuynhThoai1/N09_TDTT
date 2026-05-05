@@ -14,13 +14,14 @@ from pathlib import Path
 import os
 from dotenv import load_dotenv
 
-# Load environment variables from .env file (ở thư mục gốc dự án)
-ENV_PATH = Path(__file__).resolve().parent.parent.parent / '.env'
-load_dotenv(ENV_PATH)
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Load environment variables (Ưu tiên backend/.env, sau đó mới đến root .env)
+load_dotenv(os.path.join(BASE_DIR, '.env')) # backend/.env
+load_dotenv(os.path.join(BASE_DIR, '..', '.env')) # root .env
 
 
 # Quick-start development settings - unsuitable for production
@@ -140,15 +141,13 @@ STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOWED_ORIGINS = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-    ]
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174"
+]
+CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
     "accept",

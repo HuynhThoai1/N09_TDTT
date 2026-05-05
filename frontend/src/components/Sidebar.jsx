@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { getUserVibes } from "../lib/vibeApi";
 import { Input } from "@/components/ui/input.jsx";
 import { Button } from "@/components/ui/button.jsx";
 import { Label } from "@/components/ui/label.jsx";
@@ -55,6 +57,9 @@ export default function Sidebar({
 	const [heroImageOverride, setHeroImageOverride] = useState(null);
 	const [activeTab, setActiveTab] = useState("plan");
 
+	const [userVibes, setUserVibes] = useState([]);
+	const navigate = useNavigate();
+
 	const [searchTerm, setSearchTerm] = useState("");
 	const [suggestions, setSuggestions] = useState([]);
 	const [selectedLocation, setSelectedLocation] = useState(null);
@@ -78,6 +83,13 @@ export default function Sidebar({
 			setSelectedLocation(null);
 		}
 	};
+
+
+	useEffect(() => {
+		getUserVibes()
+			.then(data => setUserVibes(data.vibes || []))
+			.catch(() => { }); // Chưa đăng nhập thì bỏ qua
+	}, []);
 
 	// Kỹ thuật debounce search (300ms sau khi người dùng ngừng gõ thì mới gọi API)
 	useEffect(() => {
@@ -186,6 +198,10 @@ export default function Sidebar({
 		if (stops.length < 1) return;
 		setIsGenerating(true);
 
+		const vibeContext = userVibes.length > 0
+			? ". Ưu tiên: " + userVibes.map(v => v.label).join(", ")
+			: "";
+
 		const payload = {
 			stops: stops.map((s) => ({
 				id: s.id || s.poi_id,
@@ -193,7 +209,7 @@ export default function Sidebar({
 				latitude: s.latitude,
 				longitude: s.longitude,
 			})),
-			prompt_text: goalText.trim(),
+			prompt_text: goalText.trim() + vibeContext,
 		};
 
 		console.log("[FE] Gửi lên /api/smart-itinerary/:", payload);
@@ -451,10 +467,10 @@ export default function Sidebar({
 										<div
 											key={`${s.id}-${i}`}
 											className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-all group border border-transparent ${isDuplicate
-													? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
-													: draggingIndex === i
-														? "ring-1 ring-blue-500/70 bg-slate-800"
-														: "hover:bg-slate-800/80 hover:border-slate-700/50 shadow-sm"
+												? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
+												: draggingIndex === i
+													? "ring-1 ring-blue-500/70 bg-slate-800"
+													: "hover:bg-slate-800/80 hover:border-slate-700/50 shadow-sm"
 												}`}
 											onDragOver={(e) => {
 												e.preventDefault();
@@ -492,8 +508,8 @@ export default function Sidebar({
 														setDraggingIndex(null)
 													}
 													className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 shadow-inner ${isLast
-															? "bg-blue-600 text-white ring-2 ring-blue-400/50 shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-															: "bg-blue-600/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-600 group-hover:text-white cursor-grab active:cursor-grabbing"
+														? "bg-blue-600 text-white ring-2 ring-blue-400/50 shadow-[0_0_8px_rgba(37,99,235,0.4)]"
+														: "bg-blue-600/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-600 group-hover:text-white cursor-grab active:cursor-grabbing"
 														}`}
 												>
 													<MapPin size={14} />
@@ -568,7 +584,41 @@ export default function Sidebar({
 										{(goalText ?? "").length}/300
 									</p>
 								</div>
+								<div className="border-t border-slate-800 pt-4 space-y-2">
+									<div className="flex items-center justify-between">
+										<Label className="text-slate-400 text-xs uppercase tracking-wider">
+											Sở thích của bạn
+										</Label>
+										<button
+											type="button"
+											onClick={() => navigate("/onboarding")}
+											className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+										>
+											✏️ Chỉnh sửa
+										</button>
+									</div>
 
+									{userVibes.length > 0 ? (
+										<div className="flex flex-wrap gap-1.5">
+											{userVibes.map(vibe => (
+												<span
+													key={vibe.id}
+													className="text-xs bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full"
+												>
+													{vibe.icon} {vibe.label}
+												</span>
+											))}
+										</div>
+									) : (
+										<button
+											type="button"
+											onClick={() => navigate("/onboarding")}
+											className="w-full text-xs text-slate-500 border border-dashed border-slate-700 rounded-lg py-2 hover:border-blue-500/50 hover:text-blue-400 transition-colors"
+										>
+											+ Thêm sở thích để AI gợi ý chính xác hơn
+										</button>
+									)}
+								</div>
 								<div className="mt-auto pt-2 pb-1">
 									<Button
 										type="button"
@@ -576,8 +626,8 @@ export default function Sidebar({
 											isGenerating || stops.length < 1
 										}
 										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${isGenerating
-												? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
-												: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
+											? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
+											: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
 											}`}
 										onClick={runSmartItinerary}
 									>
