@@ -7,13 +7,12 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
-<<<<<<< develop_Vu
-from .models import PointOfInterest, SharedRoute
-from .serializers import POISerializer
-=======
-from .models import PointOfInterest, VibeTag, UserProfile
-from .serializers import POISerializer, VibeTagSerializer, UserProfileSerializer, UserVibeUpdateSerializer
->>>>>>> main
+from .models import PointOfInterest, SharedRoute, VibeTag, UserProfile
+from .serializers import (
+    POISerializer, VibeTagSerializer, UserProfileSerializer, 
+    UserVibeUpdateSerializer
+)
+
 from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
 from .goong_service import goong_autocomplete, goong_place_detail, goong_geocode, goong_reverse_geocode

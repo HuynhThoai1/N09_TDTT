@@ -1,11 +1,8 @@
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import MainPage from "./pages/MainPage";
-<<<<<<< develop_Vu
 import SharedRoutePage from "./pages/SharedRoutePage";
-=======
 import OnboardingPage from "./pages/OnboardingPage";
 
->>>>>>> main
 const router = createBrowserRouter([
 	//Sau này có thêm các trang khác nếu muốn
 	{

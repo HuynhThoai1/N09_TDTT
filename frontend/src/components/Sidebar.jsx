@@ -23,7 +23,7 @@ import {
 	Share2,
 	Check,
 } from "lucide-react";
-import { buildMockItinerarySuggestions } from "@/lib/mockItineraries";
+
 
 const getApiBase = () => {
 	if (typeof window === "undefined") return "http://localhost:8000";
@@ -257,18 +257,14 @@ export default function Sidebar({
 			setActiveTab("results");
 		} catch (err) {
 			console.error("[FE] Lỗi khi gọi Smart Itinerary API:", err);
-			// Fallback về mock nếu API lỗi (giữ trải nghiệm người dùng)
-			const suggestionsList = buildMockItinerarySuggestions(
-				stops,
-				goalText,
-			);
-			onRouteSuggestionsChange(suggestionsList);
+			onRouteSuggestionsChange([]);
 			setSelectedSuggestionId(null);
 			onSelectedRouteChange(null);
 			onDetailLocationChange(null);
 			onFocusLocation(null);
 			setExpandedRouteId(null);
 			setActiveTab("results");
+
 		} finally {
 			setIsGenerating(false);
 		}

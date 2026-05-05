@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import goongjs from "@goongmaps/goong-js";
 import "@goongmaps/goong-js/dist/goong-js.css";
 import { ChevronLeft, ChevronRight, Route } from "lucide-react";
-import { orderWaypointsShortest } from "@/lib/mockItineraries";
+
 
 const GOONG_MAPTILES_KEY = import.meta.env.VITE_GOONG_MAPTILES_KEY;
 const HCMC_CENTER = [106.7009, 10.7769]; // [lng, lat] cho Goong/Mapbox
@@ -99,9 +99,7 @@ export default function MapView({
 	const ordered = useMemo(() => {
 		const waypoints = route?.waypoints ?? [];
 		if (!waypoints.length) return [];
-		return shortestPath
-			? orderWaypointsShortest(waypoints)
-			: [...waypoints];
+		return [...waypoints];
 	}, [route, shortestPath]);
 
 	const linePositions = useMemo(() => {
