@@ -1,9 +1,6 @@
 from django.db import models
-<<<<<<< develop_Vu
-from .share_utils import generate_share_id
-=======
 from django.conf import settings
->>>>>>> main
+from .share_utils import generate_share_id
 
 class PointOfInterest(models.Model):
     poi_id = models.CharField(max_length=100, unique=True, db_index=True, null=True, blank=True)
@@ -27,7 +24,7 @@ class PointOfInterest(models.Model):
         db_table = 'points_of_interest'
         verbose_name = 'Địa danh'
         verbose_name_plural = 'Danh sách địa danh'
-<<<<<<< develop_Vu
+
 class SharedRoute(models.Model):
     share_id = models.CharField(max_length=20, unique=True, db_index=True, default=generate_share_id, editable=False)
     route_data = models.JSONField()
@@ -43,7 +40,7 @@ class SharedRoute(models.Model):
         verbose_name = 'Đường dẫn chia sẻ'
         verbose_name_plural = 'Danh sách đường dẫn chia sẻ'
         ordering = ['-created_at']
-=======
+
 
 class VibeTag(models.Model):
     CATEGORY_CHOICES = [
@@ -83,4 +80,4 @@ class UserProfile(models.Model):
         if not keywords:
             return ""
         return "Ưu tiên: " + ", ".join(keywords)
->>>>>>> main
+
