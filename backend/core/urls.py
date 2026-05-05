@@ -24,6 +24,8 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/search-locations/', views.searchLocations, name='api_search_locations'),
     path('api/smart-itinerary/', views.smartItinerary, name='api_smart_itinerary'),
+    path('api/shared-routes/', views.createSharedRoute, name='api_create_shared_route'),
+    path('api/shared-routes/<str:share_id>/', views.getSharedRoute, name='api_get_shared_route'),
 
     path('api/goong/autocomplete/', views.goongAutocomplete, name='api_goong_autocomplete'),
     path('api/goong/place-detail/', views.goongPlaceDetail, name='api_goong_place_detail'),
