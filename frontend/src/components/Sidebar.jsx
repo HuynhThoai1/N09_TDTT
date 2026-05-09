@@ -23,7 +23,7 @@ import {
 	Share2,
 	Check,
 } from "lucide-react";
-
+import AIClarification from "./AIClarification.jsx";
 
 const getApiBase = () => {
 	if (typeof window === "undefined") return "http://localhost:8000";
@@ -31,7 +31,8 @@ const getApiBase = () => {
 };
 
 const resolveImageUrl = (path) => {
-	if (!path) return "https://images.unsplash.com/photo-1549416801-92732958742d?q=80&w=1470&auto=format&fit=crop";
+	if (!path)
+		return "https://images.unsplash.com/photo-1549416801-92732958742d?q=80&w=1470&auto=format&fit=crop";
 	if (path.startsWith("http")) return path;
 
 	// Tránh double slash khi nối API host với path
@@ -68,12 +69,54 @@ export default function Sidebar({
 
 	const [expandedRouteId, setExpandedRouteId] = useState(null);
 	const [selectedSuggestionId, setSelectedSuggestionId] = useState(null);
-	const [draggingIndex, setDraggingIndex] = useState(null);
 	const [isGenerating, setIsGenerating] = useState(false);
 	const [duplicateId, setDuplicateId] = useState(null);
 	const [previewImage, setPreviewImage] = useState(null);
-	const [shareState, setShareState] = useState({ routeId: null, status: "idle", message: "" });
+	const [shareState, setShareState] = useState({
+		routeId: null,
+		status: "idle",
+		message: "",
+	});
 	const isSelectingRef = useRef(false);
+
+	// AI Callback Interview States
+	const [showAIQuestions, setShowAIQuestions] = useState(true);
+	const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+	const [aiAnswers, setAIAnswers] = useState({});
+	const [otherAnswer, setOtherAnswer] = useState("");
+
+	const aiQuestions = [
+		{
+			id: 1,
+			question: "Chuyến đi này bạn dự định đi cùng ai?",
+			options: [
+				{ id: "A", text: "Đi một mình" },
+				{ id: "B", text: "Cùng người yêu/bạn đời" },
+				{ id: "C", text: "Cùng gia đình (trẻ nhỏ/người già)" },
+				{ id: "D", text: "Nhóm bạn thân" },
+			],
+		},
+		{
+			id: 2,
+			question: "Mức độ vận động mong muốn của bạn?",
+			options: [
+				{ id: "A", text: "Nhẹ nhàng (Thư giãn, cafe)" },
+				{ id: "B", text: "Vừa phải (Đi bộ, tham quan)" },
+				{ id: "C", text: "Năng động (Hoạt động ngoài trời)" },
+				{ id: "D", text: "Thử thách (Leo trèo, khám phá)" },
+			],
+		},
+		{
+			id: 3,
+			question: "Ngân sách dự kiến cho các hoạt động?",
+			options: [
+				{ id: "A", text: "Tiết kiệm nhất có thể" },
+				{ id: "B", text: "Phổ thông (Cân đối)" },
+				{ id: "C", text: "Thoải mái (Sang chảnh)" },
+				{ id: "D", text: "Không giới hạn" },
+			],
+		},
+	];
 
 	const handleSearchChange = (e) => {
 		const val = e.target.value;
@@ -84,11 +127,10 @@ export default function Sidebar({
 		}
 	};
 
-
 	useEffect(() => {
 		getUserVibes()
-			.then(data => setUserVibes(data.vibes || []))
-			.catch(() => { }); // Chưa đăng nhập thì bỏ qua
+			.then((data) => setUserVibes(data.vibes || []))
+			.catch(() => {}); // Chưa đăng nhập thì bỏ qua
 	}, []);
 
 	// Kỹ thuật debounce search (300ms sau khi người dùng ngừng gõ thì mới gọi API)
@@ -139,27 +181,42 @@ export default function Sidebar({
 		if (loc.is_goong_place) {
 			try {
 				const response = await fetch(
-					`${getApiBase()}/api/goong/place-detail/?place_id=${loc.poi_id}`,
+					`${getApiBase()}/api/goong/place-detail/?place_id=${encodeURIComponent(loc.poi_id)}`,
 				);
 				if (response.ok) {
 					const detail = await response.json();
-					const result = detail.result;
-					const updatedLoc = {
-						...loc,
-						latitude: result.geometry.location.lat,
-						longitude: result.geometry.location.lng,
-						name: result.name, // Lấy tên ngắn gọn
-						address: result.formatted_address,
-					};
-					setSelectedLocation(updatedLoc);
-					setSearchTerm(result.name);
+					if (detail && detail.result) {
+						const result = detail.result;
+						const updatedLoc = {
+							...loc,
+							latitude: result.geometry.location.lat,
+							longitude: result.geometry.location.lng,
+							name: result.name,
+							address: result.formatted_address,
+						};
+						setSelectedLocation(updatedLoc);
+						// Hiển thị tên đầy đủ từ gợi ý vào ô search để người dùng biết mình đã chọn đúng
+						setSearchTerm(loc.name || result.formatted_address);
+						onFocusLocation?.({ ...updatedLoc, isSearching: true });
+					} else {
+						console.error(
+							"Lỗi Goong API hoặc không có result:",
+							detail,
+						);
+						isSelectingRef.current = false;
+					}
+				} else {
+					console.error("Lỗi kết nối API:", response.status);
+					isSelectingRef.current = false;
 				}
 			} catch (error) {
 				console.error("Lỗi khi lấy chi tiết địa điểm Goong:", error);
+				isSelectingRef.current = false;
 			}
 		} else {
 			setSelectedLocation(loc);
 			setSearchTerm(loc.name);
+			onFocusLocation?.({ ...loc, isSearching: true });
 		}
 		setSuggestions([]);
 	};
@@ -178,15 +235,6 @@ export default function Sidebar({
 		onStopsChange(stops.filter((_, idx) => idx !== index));
 	};
 
-	const moveStop = (fromIndex, toIndex) => {
-		if (fromIndex === toIndex || fromIndex === null || toIndex === null)
-			return;
-		const nextStops = [...stops];
-		const [moved] = nextStops.splice(fromIndex, 1);
-		nextStops.splice(toIndex, 0, moved);
-		onStopsChange(nextStops);
-	};
-
 	const openDetail = (loc) => {
 		setHeroImageOverride(null);
 		onDetailLocationChange(loc);
@@ -196,11 +244,18 @@ export default function Sidebar({
 
 	const runSmartItinerary = async () => {
 		if (stops.length < 1) return;
-		setIsGenerating(true);
+		setShowAIQuestions(true);
+		setCurrentQuestionIndex(0);
+	};
 
-		const vibeContext = userVibes.length > 0
-			? ". Ưu tiên: " + userVibes.map(v => v.label).join(", ")
-			: "";
+	const handleFinishAIQuestions = async () => {
+		setIsGenerating(true);
+		setShowAIQuestions(false);
+
+		const vibeContext =
+			userVibes.length > 0
+				? ". Ưu tiên: " + userVibes.map((v) => v.label).join(", ")
+				: "";
 
 		const payload = {
 			stops: stops.map((s) => ({
@@ -264,7 +319,6 @@ export default function Sidebar({
 			onFocusLocation(null);
 			setExpandedRouteId(null);
 			setActiveTab("results");
-
 		} finally {
 			setIsGenerating(false);
 		}
@@ -278,7 +332,11 @@ export default function Sidebar({
 
 	const handleShareRoute = async (route) => {
 		try {
-			setShareState({ routeId: route.id, status: "loading", message: "Đang tạo link chia sẻ..." });
+			setShareState({
+				routeId: route.id,
+				status: "loading",
+				message: "Đang tạo link chia sẻ...",
+			});
 			const response = await fetch(`${getApiBase()}/api/shared-routes/`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -303,10 +361,18 @@ export default function Sidebar({
 				window.prompt("Copy link chia sẻ", shareUrl);
 			}
 
-			setShareState({ routeId: route.id, status: "success", message: "Đã tạo link và copy vào clipboard." });
+			setShareState({
+				routeId: route.id,
+				status: "success",
+				message: "Đã tạo link và copy vào clipboard.",
+			});
 		} catch (error) {
 			console.error("Lỗi khi tạo shared route:", error);
-			setShareState({ routeId: route.id, status: "error", message: "Không tạo được link chia sẻ." });
+			setShareState({
+				routeId: route.id,
+				status: "error",
+				message: "Không tạo được link chia sẻ.",
+			});
 		}
 	};
 
@@ -340,7 +406,7 @@ export default function Sidebar({
 				className={`fixed top-0 left-0 h-full bg-slate-950/80 backdrop-blur-xl shadow-[5px_0_20px_rgba(0,0,0,0.5)] z-[1001] transition-all duration-300 ease-in-out border-r border-slate-800 overflow-hidden
                 ${isOpen ? "w-[28rem] translate-x-0" : "w-0 -translate-x-full"}`}
 			>
-				<div className="w-[28rem] h-full flex flex-col text-slate-100 overflow-y-auto">
+				<div className="w-[28rem] h-full flex flex-col text-slate-100 overflow-hidden">
 					<div className="flex px-4 pt-6 pb-2 border-b border-slate-800 shrink-0">
 						<button
 							type="button"
@@ -369,8 +435,8 @@ export default function Sidebar({
 						<div
 							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "plan" ? "" : "hidden"}`}
 						>
-							<div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col no-scrollbar">
-								<div className="space-y-3 relative">
+							<div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col custom-scrollbar">
+								<div className="space-y-3 relative shrink-0">
 									<Label className="text-slate-400 text-xs uppercase tracking-wider">
 										Vị trí bắt đầu
 									</Label>
@@ -462,101 +528,76 @@ export default function Sidebar({
 									return (
 										<div
 											key={`${s.id}-${i}`}
-											className={`flex items-center justify-between text-sm text-slate-300 bg-slate-800/50 p-2 rounded transition-all group border border-transparent ${isDuplicate
-												? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
-												: draggingIndex === i
-													? "ring-1 ring-blue-500/70 bg-slate-800"
-													: "hover:bg-slate-800/80 hover:border-slate-700/50 shadow-sm"
-												}`}
-											onDragOver={(e) => {
-												e.preventDefault();
-											}}
-											onDrop={(e) => {
-												e.preventDefault();
-												const from = Number(
-													e.dataTransfer.getData(
-														"text/plain",
-													),
-												);
-												moveStop(from, i);
-												setDraggingIndex(null);
-											}}
+											className={`flex flex-col text-sm text-slate-300 bg-slate-800/40 p-3 rounded-xl transition-all group border border-transparent shrink-0 ${
+												isDuplicate
+													? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
+													: "hover:bg-slate-800/60 hover:border-slate-700/50 shadow-sm shadow-black/20"
+											}`}
 										>
-											<div className="flex items-center gap-3 min-w-0 flex-1">
-												<button
-													type="button"
-													draggable
-													title={
-														isLast
-															? "Điểm đến cuối cùng"
-															: "Kéo thả để đổi thứ tự"
-													}
-													onDragStart={(e) => {
-														e.dataTransfer.setData(
-															"text/plain",
-															String(i),
-														);
-														e.dataTransfer.effectAllowed =
-															"move";
-														setDraggingIndex(i);
-													}}
-													onDragEnd={() =>
-														setDraggingIndex(null)
-													}
-													className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all shrink-0 shadow-inner ${isLast
-														? "bg-blue-600 text-white ring-2 ring-blue-400/50 shadow-[0_0_8px_rgba(37,99,235,0.4)]"
-														: "bg-blue-600/20 text-blue-400 border border-blue-500/30 group-hover:bg-blue-600 group-hover:text-white cursor-grab active:cursor-grabbing"
-														}`}
-												>
-													<MapPin size={14} />
-												</button>
+											<div className="flex items-start gap-3 min-w-0">
+												<div className="flex flex-col items-center shrink-0 pt-1.5">
+													<div
+														className={`w-2.5 h-2.5 rounded-full ${i === 0 ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" : "bg-slate-600"} ring-2 ring-slate-900`}
+													/>
+													{!isLast && (
+														<div className="w-0.5 h-8 bg-slate-800/80 mt-1.5" />
+													)}
+												</div>
 
-												<GripVertical
-													size={14}
-													className="text-slate-600 shrink-0 opacity-40 group-hover:opacity-100 transition-opacity"
-												/>
-												<span className="truncate font-medium text-slate-200">
-													{s.name}
-												</span>
+												<div className="flex-1 min-w-0">
+													<p className="text-slate-200 text-sm leading-relaxed font-normal line-clamp-2">
+														{s.address || s.name}
+													</p>
+												</div>
 											</div>
 
-											<div className="flex items-center gap-1.5 ml-2 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+											{/* Hàng dưới: Các nút thao tác */}
+											<div className="flex items-center justify-end gap-1 mt-3 pt-2 border-t border-slate-700/30 shrink-0">
 												<button
 													type="button"
 													onClick={() =>
-														onFocusLocation(s)
+														onFocusLocation({
+															...s,
+															_t: Date.now(),
+														})
 													}
-													className="p-1.5 hover:bg-slate-700 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
+													className="flex items-center gap-1 px-2 py-1 hover:bg-slate-700 rounded text-[11px] text-slate-400 hover:text-blue-400 transition-colors"
 													title="Xem trên bản đồ"
 												>
-													<LocateFixed size={15} />
+													<LocateFixed size={13} />
+													<span>Vị trí</span>
 												</button>
 												<button
 													type="button"
 													onClick={() =>
 														openDetail(s)
 													}
-													className="p-1.5 hover:bg-slate-700 rounded-md text-slate-400 hover:text-blue-400 transition-colors"
+													className="flex items-center gap-1 px-2 py-1 hover:bg-slate-700 rounded text-[11px] text-slate-400 hover:text-blue-400 transition-colors"
 													title="Xem chi tiết"
 												>
-													<Info size={15} />
+													<Info size={13} />
+													<span>Chi tiết</span>
 												</button>
+												<div className="w-px h-3 bg-slate-700 mx-0.5"></div>
 												<button
 													type="button"
 													onClick={() =>
 														removeStop(i)
 													}
-													className="p-1.5 hover:bg-red-900/40 rounded-md text-slate-400 hover:text-red-400 transition-colors"
-													title="Xóa điểm dừng"
+													className="flex items-center gap-1 px-2 py-1 hover:bg-red-900/30 rounded text-[11px] text-slate-400 hover:text-red-400 transition-colors"
+													title="Xóa điểm"
 												>
-													<Trash2 size={15} />
+													<Trash2 size={13} />
+													<span>Xóa</span>
 												</button>
 											</div>
 										</div>
 									);
 								})}
 
-								<div className="space-y-2">
+								<hr className="border-slate-800 shrink-0" />
+
+								<div className="space-y-2 shrink-0">
 									<Label
 										htmlFor="goal-text"
 										className="text-slate-400 text-xs uppercase tracking-wider"
@@ -580,14 +621,18 @@ export default function Sidebar({
 										{(goalText ?? "").length}/300
 									</p>
 								</div>
-								<div className="border-t border-slate-800 pt-4 space-y-2">
+								<hr className="border-slate-800 shrink-0" />
+
+								<div className="space-y-2 shrink-0">
 									<div className="flex items-center justify-between">
 										<Label className="text-slate-400 text-xs uppercase tracking-wider">
 											Sở thích của bạn
 										</Label>
 										<button
 											type="button"
-											onClick={() => navigate("/onboarding")}
+											onClick={() =>
+												navigate("/onboarding")
+											}
 											className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
 										>
 											✏️ Chỉnh sửa
@@ -596,7 +641,7 @@ export default function Sidebar({
 
 									{userVibes.length > 0 ? (
 										<div className="flex flex-wrap gap-1.5">
-											{userVibes.map(vibe => (
+											{userVibes.map((vibe) => (
 												<span
 													key={vibe.id}
 													className="text-xs bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full"
@@ -608,24 +653,45 @@ export default function Sidebar({
 									) : (
 										<button
 											type="button"
-											onClick={() => navigate("/onboarding")}
+											onClick={() =>
+												navigate("/onboarding")
+											}
 											className="w-full text-xs text-slate-500 border border-dashed border-slate-700 rounded-lg py-2 hover:border-blue-500/50 hover:text-blue-400 transition-colors"
 										>
-											+ Thêm sở thích để AI gợi ý chính xác hơn
+											+ Thêm sở thích để AI gợi ý chính
+											xác hơn
 										</button>
 									)}
 								</div>
-								<div className="mt-auto pt-2 pb-1">
+
+								{/* AI Clarification Section */}
+								{showAIQuestions && (
+									<>
+										<hr className="border-slate-800 shrink-0" />
+										<AIClarification
+											aiQuestions={aiQuestions}
+											currentQuestionIndex={currentQuestionIndex}
+											setCurrentQuestionIndex={setCurrentQuestionIndex}
+											aiAnswers={aiAnswers}
+											setAIAnswers={setAIAnswers}
+											otherAnswer={otherAnswer}
+											setOtherAnswer={setOtherAnswer}
+										/>
+									</>
+								)}
+
+								<div className="mt-auto pt-2 pb-1 shrink-0">
 									<Button
 										type="button"
 										disabled={
 											isGenerating || stops.length < 1
 										}
-										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${isGenerating
-											? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
-											: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
-											}`}
-										onClick={runSmartItinerary}
+										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${
+											isGenerating
+												? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
+												: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
+										}`}
+										onClick={showAIQuestions ? handleFinishAIQuestions : runSmartItinerary}
 									>
 										{isGenerating ? (
 											<div className="flex items-center gap-1.5">
@@ -636,7 +702,7 @@ export default function Sidebar({
 										) : (
 											<>
 												<Navigation className="mr-2 group-hover:rotate-12 transition-transform" />
-												Gợi ý lộ trình
+												{showAIQuestions ? "Gợi ý ngay" : "Gợi ý lộ trình"}
 											</>
 										)}
 									</Button>
@@ -647,7 +713,7 @@ export default function Sidebar({
 						<div
 							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "detail" ? "" : "hidden"}`}
 						>
-							<div className="p-6 flex-1 overflow-y-auto no-scrollbar bg-slate-900/10 space-y-4">
+							<div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-900/10 space-y-4">
 								{displayDetail ? (
 									<div className="space-y-4">
 										<div className="space-y-3">
@@ -662,7 +728,7 @@ export default function Sidebar({
 												<img
 													src={resolveImageUrl(
 														heroImageOverride ||
-														displayDetail.image,
+															displayDetail.image,
 													)}
 													alt={displayDetail.name}
 													className="object-cover w-full h-full transition-all duration-700 group-hover:scale-110"
@@ -686,7 +752,7 @@ export default function Sidebar({
 										{/* Thông tin thêm: Sub Images */}
 										{displayDetail.image_list &&
 											displayDetail.image_list.length >
-											1 && (
+												1 && (
 												<div className="space-y-2">
 													<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
 														Thông tin thêm
@@ -739,9 +805,7 @@ export default function Sidebar({
 											className="w-full mt-4 bg-slate-800 hover:bg-blue-600 border border-slate-700 hover:border-blue-500 transition-colors"
 											onClick={() => {
 												if (!displayDetail) return;
-												onStopsChange([
-													displayDetail,
-												]);
+												onStopsChange([displayDetail]);
 												onFocusLocation?.(
 													displayDetail,
 												); // Tu dong bay den
@@ -771,7 +835,7 @@ export default function Sidebar({
 						<div
 							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "results" ? "" : "hidden"}`}
 						>
-							<div className="flex-1 overflow-y-auto p-6 no-scrollbar bg-slate-900/10 space-y-4 min-h-0">
+							<div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-900/10 space-y-4 min-h-0">
 								<p className="text-xs text-slate-500">
 									Dữ liệu minh họa. Payload thực tế khi có
 									API: danh sách điểm dừng + mục tiêu + ngữ
@@ -815,30 +879,64 @@ export default function Sidebar({
 																</h3>
 																<div className="flex items-center gap-2 shrink-0">
 																	<span className="text-[10px] uppercase text-slate-500 shrink-0">
-																		{r.totalDuration} · {r.totalDistance}
+																		{
+																			r.totalDuration
+																		}{" "}
+																		·{" "}
+																		{
+																			r.totalDistance
+																		}
 																	</span>
 																	<Button
 																		type="button"
 																		variant="outline"
 																		size="xs"
-																		onClick={() => handleShareRoute(r)}
-																		disabled={shareState.routeId === r.id && shareState.status === "loading"}
+																		onClick={() =>
+																			handleShareRoute(
+																				r,
+																			)
+																		}
+																		disabled={
+																			shareState.routeId ===
+																				r.id &&
+																			shareState.status ===
+																				"loading"
+																		}
 																		className="border-slate-700 bg-slate-800/90 text-slate-100 hover:bg-slate-700"
 																	>
-																		{shareState.routeId === r.id && shareState.status === "success" ? (
-																			<Check size={12} className="mr-1" />
+																		{shareState.routeId ===
+																			r.id &&
+																		shareState.status ===
+																			"success" ? (
+																			<Check
+																				size={
+																					12
+																				}
+																				className="mr-1"
+																			/>
 																		) : (
-																			<Share2 size={12} className="mr-1" />
+																			<Share2
+																				size={
+																					12
+																				}
+																				className="mr-1"
+																			/>
 																		)}
 																		Chia sẻ
 																	</Button>
 																</div>
 															</div>
-															{shareState.routeId === r.id && shareState.message && (
-																<p className={`text-[11px] ${shareState.status === "error" ? "text-red-400" : "text-emerald-400"}`}>
-																	{shareState.message}
-																</p>
-															)}
+															{shareState.routeId ===
+																r.id &&
+																shareState.message && (
+																	<p
+																		className={`text-[11px] ${shareState.status === "error" ? "text-red-400" : "text-emerald-400"}`}
+																	>
+																		{
+																			shareState.message
+																		}
+																	</p>
+																)}
 
 															<p className="text-xs text-slate-400 leading-relaxed">
 																{r.waypoints.map(
@@ -851,11 +949,11 @@ export default function Sidebar({
 																		>
 																			{idx >
 																				0 && (
-																					<span className="text-slate-600">
-																						{" "}
-																						→{" "}
-																					</span>
-																				)}
+																				<span className="text-slate-600">
+																					{" "}
+																					→{" "}
+																				</span>
+																			)}
 																			<button
 																				type="button"
 																				className="text-blue-300 hover:text-blue-200 hover:underline font-medium"
