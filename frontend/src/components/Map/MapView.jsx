@@ -1,7 +1,7 @@
 import { useEffect, useRef, useMemo, useState, useCallback } from "react";
 import goongjs from "@goongmaps/goong-js";
 import "@goongmaps/goong-js/dist/goong-js.css";
-import { ChevronLeft, ChevronRight, Route } from "lucide-react";
+import { ChevronLeft, ChevronRight, Route, Search, X, Trash2, LocateFixed, Info, Loader2 } from "lucide-react";
 
 
 const GOONG_MAPTILES_KEY = import.meta.env.VITE_GOONG_MAPTILES_KEY;
@@ -11,9 +11,18 @@ goongjs.accessToken = GOONG_MAPTILES_KEY;
 
 // Tạo HTML cho numbered marker
 const createMarkerElement = (index, isLast = false) => {
+	// outer container: map positions this element by setting its transform.
+	// avoid changing `el.style.transform` because the map controls it —
+	// instead put visuals into `inner` and scale the inner element on hover.
 	const el = document.createElement("div");
 	el.className = "goong-numbered-marker";
 	el.style.cssText = `
+		display: inline-block; /* keep a wrapper only */
+		line-height: 0;
+	`;
+
+	const inner = document.createElement("div");
+	inner.style.cssText = `
 		width: 32px; height: 32px; border-radius: 9999px;
 		background: ${isLast ? "#dc2626" : "#2563eb"};
 		border: 3px solid ${isLast ? "#fecaca" : "#bfdbfe"};
@@ -21,11 +30,17 @@ const createMarkerElement = (index, isLast = false) => {
 		font-weight: 700; font-size: 13px;
 		display: flex; align-items: center; justify-content: center;
 		box-shadow: 0 3px 12px ${isLast ? "rgba(220,38,38,0.5)" : "rgba(37,99,235,0.5)"};
-		cursor: pointer; transition: transform 0.2s;
+		cursor: pointer; transition: transform 0.15s ease;
+		transform-origin: center center;
+		transform: scale(1);
 	`;
-	el.textContent = index;
-	el.onmouseenter = () => (el.style.transform = "scale(1.2)");
-	el.onmouseleave = () => (el.style.transform = "scale(1)");
+	inner.textContent = index;
+
+	// scale only the inner visual element — map keeps positioning outer `el`
+	inner.addEventListener("mouseenter", () => (inner.style.transform = "scale(1.18)"));
+	inner.addEventListener("mouseleave", () => (inner.style.transform = "scale(1)"));
+
+	el.appendChild(inner);
 	return el;
 };
 
@@ -83,6 +98,9 @@ export default function MapView({
 	shortestPath,
 	onShortestPathChange,
 	onFocusLocation,
+	onDetailLocationChange,
+	onOptimizeRoute,
+	isRecalculatingRoute = false,
 	recenterKey = 0,
 }) {
 	const mapContainerRef = useRef(null);
@@ -92,6 +110,126 @@ export default function MapView({
 	const prevRecenterKeyRef = useRef(recenterKey);
 	const [routePanelOpen, setRoutePanelOpen] = useState(true);
 	const [mapStyle, setMapStyle] = useState("goong");
+
+	// Drag & drop state for reordering suggested stops
+	const [dragIndex, setDragIndex] = useState(null);
+	const [dragOverIndex, setDragOverIndex] = useState(null);
+
+	// Search state for adding new waypoints
+	const [searchTerm, setSearchTerm] = useState("");
+	const [searchSuggestions, setSearchSuggestions] = useState([]);
+	const [isSearching, setIsSearching] = useState(false);
+	const [actionNotice, setActionNotice] = useState(null);
+
+	const showActionNotice = useCallback((type, message) => {
+		setActionNotice({ type, message });
+	}, []);
+
+	// Helper: get API base URL
+	const getApiBase = () => {
+		if (typeof window === "undefined") return "http://localhost:8000";
+		return `${window.location.protocol}//${window.location.hostname}:8000`;
+	};
+
+	// Search waypoint locations
+	const handleSearchLocation = useCallback(async (term) => {
+		if (!term.trim()) {
+			setSearchSuggestions([]);
+			return;
+		}
+		setIsSearching(true);
+		try {
+			const response = await fetch(
+				`${getApiBase()}/api/goong/autocomplete/?input=${encodeURIComponent(term)}`
+			);
+			if (response.ok) {
+				const data = await response.json();
+				const mapped = (data.predictions || []).map((p) => ({
+					id: p.place_id,
+					poi_id: p.place_id,
+					name: p.description,
+					address: p.compound?.address || p.description,
+					is_goong_place: true,
+				}));
+				setSearchSuggestions(mapped);
+			}
+		} catch (error) {
+			console.error("Search error:", error);
+		} finally {
+			setIsSearching(false);
+		}
+	}, [getApiBase]);
+
+	// Add waypoint to route
+	const handleAddWaypoint = useCallback(async (loc) => {
+		if (!route) return;
+		try {
+			// Get detailed location if needed
+			let finalLoc = loc;
+			if (loc.is_goong_place) {
+				const response = await fetch(
+					`${getApiBase()}/api/goong/place-detail/?place_id=${loc.poi_id}`
+				);
+				if (response.ok) {
+					const detail = await response.json();
+					const result = detail.result;
+					finalLoc = {
+						...loc,
+						latitude: result.geometry.location.lat,
+						longitude: result.geometry.location.lng,
+						name: result.name,
+						address: result.formatted_address,
+					};
+				}
+			}
+			// Add to waypoints (before last waypoint)
+			const newWaypoints = [...route.waypoints];
+			newWaypoints.splice(newWaypoints.length - 1, 0, finalLoc);
+			const recalcOk = await onShortestPathChange?.(newWaypoints);
+			if (recalcOk === false) {
+				showActionNotice("error", "Thêm địa điểm thành công nhưng cập nhật đường đi thất bại.");
+			} else {
+				showActionNotice("success", "Đã thêm địa điểm và cập nhật lộ trình.");
+			}
+			setSearchTerm("");
+			setSearchSuggestions([]);
+		} catch (error) {
+			console.error("Add waypoint error:", error);
+			showActionNotice("error", "Không thể thêm địa điểm vào lộ trình.");
+		}
+	}, [route, onShortestPathChange, getApiBase, showActionNotice]);
+
+	// Remove waypoint from route (cannot remove first or last)
+	const handleRemoveWaypoint = useCallback(
+		async (index) => {
+			if (!route || index === 0 || index === route.waypoints.length - 1) return;
+			const newWaypoints = route.waypoints.filter((_, i) => i !== index);
+			const recalcOk = await onShortestPathChange?.(newWaypoints);
+			if (recalcOk === false) {
+				showActionNotice("error", "Xóa địa điểm thành công nhưng cập nhật đường đi thất bại.");
+			} else {
+				showActionNotice("success", "Đã xóa địa điểm và cập nhật lộ trình.");
+			}
+		},
+		[route, onShortestPathChange, showActionNotice]
+	);
+
+	const handleLocateWaypoint = useCallback(
+		(waypoint, index) => {
+			const map = mapRef.current;
+			if (!map) return;
+			map.flyTo({
+				center: [waypoint.longitude, waypoint.latitude],
+				zoom: 16,
+				duration: 800,
+			});
+			onFocusLocation?.(waypoint);
+
+			const marker = markersRef.current[index];
+			if (marker?.togglePopup) marker.togglePopup();
+		},
+		[onFocusLocation]
+	);
 
 	// Định nghĩa các Style cho Goong SDK
 	const MAP_STYLES = {
@@ -262,7 +400,7 @@ export default function MapView({
 				`<div style="font-size:13px;font-weight:600;padding:4px 8px;">${i + 1}. ${w.name}${isLast ? " (Điểm đến cuối)" : ""}</div>`
 			);
 
-			const marker = new goongjs.Marker({ element: el })
+			const marker = new goongjs.Marker({ element: el, anchor: "center" })
 				.setLngLat([w.longitude, w.latitude])
 				.setPopup(popup)
 				.addTo(map);
@@ -300,7 +438,7 @@ export default function MapView({
 
 			const target = [lng, lat];
 			const currentCenter = map.getCenter();
-			
+		
 			// Tính khoảng cách tương đối (theo độ)
 			const dLat = lat - currentCenter.lat;
 			const dLng = lng - currentCenter.lng;
@@ -370,6 +508,14 @@ export default function MapView({
 			.setPopup(popup)
 			.addTo(map);
 	}, [route, focusedLocation]);
+
+	useEffect(() => {
+		if (!actionNotice) return;
+		const timeoutId = setTimeout(() => {
+			setActionNotice(null);
+		}, 2800);
+		return () => clearTimeout(timeoutId);
+	}, [actionNotice]);
 
 	return (
 		<div className="w-full h-full z-0 relative">
@@ -450,25 +596,193 @@ export default function MapView({
 									{route.label}
 								</p>
 							</div>
+							<div className="ml-auto flex items-center gap-2">
+								<button
+									type="button"
+									disabled={isRecalculatingRoute}
+									onClick={async () => {
+										if (!onOptimizeRoute) return;
+										const ok = await onOptimizeRoute();
+										if (ok) {
+											showActionNotice("success", "Tối ưu lộ trình thành công.");
+										} else {
+											showActionNotice("error", "Tối ưu lộ trình thất bại.");
+										}
+									}}
+									className="px-3 py-1.5 text-xs rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
+								>
+									Tối ưu lộ trình
+								</button>
+							</div>
 						</div>
 
-						<ul className="overflow-y-auto max-h-[calc(100%-7rem)] py-2">
-							{ordered.map((w, i) => (
-								<li key={`${w.id ?? w.name}-p-${i}`}>
+						{/* Search box to add new waypoint */}
+						<div className="p-3 border-b border-slate-800 space-y-2">
+							<label className="text-xs uppercase text-slate-500 tracking-wider block">
+								Thêm địa điểm
+							</label>
+							{isRecalculatingRoute && (
+								<div className="flex items-center gap-2 rounded-md border border-blue-500/30 bg-blue-500/10 px-2 py-1.5 text-[11px] text-blue-200">
+									<Loader2 size={12} className="animate-spin" />
+									<span>Đang tính toán lại lộ trình...</span>
+								</div>
+							)}
+							{actionNotice && (
+								<div
+									className={`rounded-md px-2 py-1.5 text-[11px] border ${
+										actionNotice.type === "success"
+											? "border-emerald-500/30 bg-emerald-500/10 text-emerald-200"
+											: "border-red-500/30 bg-red-500/10 text-red-200"
+									}`}
+								>
+									{actionNotice.message}
+								</div>
+							)}
+							<div className="relative">
+								<Search
+									className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+									size={14}
+								/>
+								<input
+									type="text"
+									placeholder="Tìm địa điểm..."
+									value={searchTerm}
+									disabled={isRecalculatingRoute}
+									onChange={(e) => {
+										const val = e.target.value;
+										setSearchTerm(val);
+										handleSearchLocation(val);
+									}}
+									className="w-full pl-10 pr-8 py-2 bg-slate-900 border border-slate-700 rounded text-xs text-white placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500"
+								/>
+								{searchTerm && (
 									<button
 										type="button"
-										onClick={() => onFocusLocation?.(w)}
-										className="w-full text-left px-4 py-2.5 flex gap-3 hover:bg-slate-800/60 transition-colors"
+										onClick={() => {
+											setSearchTerm("");
+											setSearchSuggestions([]);
+										}}
+										className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
 									>
-										<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/20 text-xs font-bold text-blue-300">
-											{i + 1}
-										</span>
-										<span className="text-sm text-slate-200 leading-snug">
-											{w.name}
-										</span>
+										<X size={14} />
 									</button>
-								</li>
-							))}
+								)}
+							</div>
+							{searchSuggestions.length > 0 && (
+								<div className="max-h-48 overflow-y-auto bg-slate-900 border border-slate-700 rounded space-y-1 p-1">
+									{searchSuggestions.map((loc) => (
+										<button
+											key={loc.id}
+											type="button"
+											disabled={isRecalculatingRoute}
+											onClick={() => handleAddWaypoint(loc)}
+											className="w-full text-left px-2 py-1.5 rounded hover:bg-slate-800 text-xs text-slate-200 transition-colors"
+										>
+											{loc.name}
+										</button>
+									))}
+								</div>
+							)}
+						</div>
+
+						<ul className="overflow-y-auto max-h-[calc(100%-11rem)] py-2">
+							{ordered.map((w, i) => {
+								const isDragging = dragIndex === i;
+								const isDragOver = dragOverIndex === i;
+								const isFirstStop = i === 0; // First stop is locked
+								const isLastStop = i === ordered.length - 1; // Cannot delete last stop
+								return (
+									<li
+										key={`${w.id ?? w.name}-p-${i}`}
+										draggable={!isFirstStop && !isRecalculatingRoute}
+										onDragStart={(e) => {
+											if (isRecalculatingRoute) return;
+											if (isFirstStop) return; // Prevent drag start for first stop
+											setDragIndex(i);
+											e.dataTransfer?.setData("text/plain", "");
+											e.dataTransfer.effectAllowed = "move";
+										}}
+										onDragOver={(e) => {
+											if (isRecalculatingRoute) return;
+											if (isFirstStop) return; // Prevent dropping on first stop
+											e.preventDefault();
+											setDragOverIndex(i);
+										}}
+										onDrop={async (e) => {
+											if (isRecalculatingRoute) return;
+											e.preventDefault();
+											if (dragIndex === null || dragIndex === 0 || i === 0) return; // Prevent moving first stop
+											const newOrder = [...ordered];
+											const [moved] = newOrder.splice(dragIndex, 1);
+											newOrder.splice(i, 0, moved);
+											setDragIndex(null);
+											setDragOverIndex(null);
+											// notify parent about new order (if callback provided)
+											const recalcOk = await onShortestPathChange?.(newOrder);
+											if (recalcOk === false) {
+												showActionNotice("error", "Đã sắp xếp lại điểm dừng nhưng cập nhật đường đi thất bại.");
+											} else {
+												showActionNotice("success", "Đã sắp xếp lại điểm dừng và cập nhật lộ trình.");
+											}
+										}}
+										onDragEnd={() => {
+											setDragIndex(null);
+											setDragOverIndex(null);
+										}}
+									>
+										<div
+											className={`w-full px-4 py-2.5 flex gap-2 justify-between items-center transition-colors ${isFirstStop ? "cursor-not-allowed opacity-75" : "cursor-move"} ${isDragOver ? "bg-slate-800/60" : "hover:bg-slate-800/60"} ${isDragging ? "opacity-60" : ""}`}
+										>
+											<button
+												type="button"
+												onClick={() => handleLocateWaypoint(w, i)}
+												className="flex gap-3 flex-1 min-w-0 text-left"
+											>
+												<span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-blue-500/20 text-xs font-bold text-blue-300">
+													{i + 1}
+												</span>
+												<span className="text-sm text-slate-200 leading-snug truncate">
+													{w.name} {isFirstStop && "(Cố định)"}
+												</span>
+											</button>
+											<div className="flex items-center gap-1">
+												<button
+													type="button"
+													disabled={isRecalculatingRoute}
+													onClick={() => handleLocateWaypoint(w, i)}
+													className="flex-shrink-0 p-1 text-slate-400 hover:text-blue-300 hover:bg-slate-800/50 rounded transition-colors"
+													title="Định vị trên bản đồ"
+												>
+													<LocateFixed size={15} />
+												</button>
+												<button
+													type="button"
+													disabled={isRecalculatingRoute}
+													onClick={() => {
+														onDetailLocationChange?.(w);
+														onFocusLocation?.(w);
+													}}
+													className="flex-shrink-0 p-1 rounded transition-colors text-slate-400 hover:text-blue-300 hover:bg-slate-800/50"
+													title="Xem chi tiết"
+												>
+													<Info size={15} />
+												</button>
+												{!isFirstStop && !isLastStop && (
+													<button
+														type="button"
+														disabled={isRecalculatingRoute}
+														onClick={() => handleRemoveWaypoint(i)}
+														className="flex-shrink-0 p-1 text-slate-500 hover:text-red-400 hover:bg-slate-800/50 rounded transition-colors"
+														title="Xoá địa điểm"
+													>
+														<Trash2 size={16} />
+													</button>
+												)}
+											</div>
+										</div>
+									</li>
+								);
+								})}
 						</ul>
 					</div>
 				</>

@@ -133,6 +133,12 @@ export default function Sidebar({
 			.catch(() => {}); // Chưa đăng nhập thì bỏ qua
 	}, []);
 
+	useEffect(() => {
+		if (!detailLocation) return;
+		setIsOpen(true);
+		setActiveTab("detail");
+	}, [detailLocation]);
+
 	// Kỹ thuật debounce search (300ms sau khi người dùng ngừng gõ thì mới gọi API)
 	useEffect(() => {
 		if (searchTerm.trim().length === 0) {
