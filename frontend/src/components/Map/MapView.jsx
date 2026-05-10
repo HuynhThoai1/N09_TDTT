@@ -45,15 +45,50 @@ const createMarkerElement = (index, isLast = false) => {
 };
 
 // Tạo HTML cho marker mặc định (focus)
-const createDefaultMarkerElement = () => {
+const createDefaultMarkerElement = (color = "#3b82f6") => {
 	const el = document.createElement("div");
-	el.style.cssText = `
-		width: 24px; height: 36px; position: relative;
+	// Không dùng cssText để tránh ghi đè thuộc tính định vị của GoongJS
+	el.style.width = "40px";
+	el.style.height = "40px";
+	el.style.display = "flex";
+	el.style.alignItems = "center";
+	el.style.justifyContent = "center";
+	el.style.cursor = "pointer";
+
+	if (!document.getElementById("marker-pulse-style")) {
+		const style = document.createElement("style");
+		style.id = "marker-pulse-style";
+		style.innerHTML = `
+			@keyframes markerPulse {
+				0% { transform: scale(1); opacity: 0.8; }
+				100% { transform: scale(3.5); opacity: 0; }
+			}
+			.pulse-ring {
+				position: absolute;
+				width: 100%;
+				height: 100%;
+				border-radius: 50%;
+				animation: markerPulse 1.5s ease-out infinite;
+				z-index: 1;
+			}
+			.pin-icon {
+				position: relative;
+				z-index: 2;
+				filter: drop-shadow(0 4px 6px rgba(0,0,0,0.5));
+			}
+		`;
+		document.head.appendChild(style);
+	}
+
+	el.innerHTML = `
+		<div class="pulse-ring" style="background-color: ${color}"></div>
+		<div class="pin-icon">
+			<svg width="40" height="40" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+				<path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="${color}" stroke="white" stroke-width="1.5"/>
+			</svg>
+		</div>
 	`;
-	el.innerHTML = `<svg viewBox="0 0 24 36" fill="none" xmlns="http://www.w3.org/2000/svg">
-		<path d="M12 0C5.37 0 0 5.37 0 12c0 9 12 24 12 24s12-15 12-24C24 5.37 18.63 0 12 0z" fill="#3b82f6"/>
-		<circle cx="12" cy="12" r="5" fill="white"/>
-	</svg>`;
+
 	return el;
 };
 
@@ -257,11 +292,7 @@ export default function MapView({
 			style: "https://tiles.goong.io/assets/goong_map_web.json",
 			center: HCMC_CENTER,
 			zoom: 13,
-			minZoom: 10,
-			maxBounds: [
-				[106.3533, 10.3731],
-				[107.0305, 11.1603],
-			],
+			minZoom: 2,
 		});
 
 		map.addControl(new goongjs.NavigationControl(), "bottom-right");
@@ -399,22 +430,48 @@ export default function MapView({
 		}
 
 		if (focusedLocation) {
-			map.flyTo({
-				center: [focusedLocation.longitude, focusedLocation.latitude],
-				zoom: 16,
-				duration: 800,
-			});
+			// Hỗ trợ cả 2 định dạng tên thuộc tính tọa độ (lat/lng và latitude/longitude)
+			const lng = focusedLocation.longitude !== undefined ? focusedLocation.longitude : focusedLocation.lng;
+			const lat = focusedLocation.latitude !== undefined ? focusedLocation.latitude : focusedLocation.lat;
 
-			if (!route) {
-				const el = createDefaultMarkerElement();
-				const popup = new goongjs.Popup({ offset: 25, closeButton: false }).setHTML(
-					`<div style="font-size:13px;font-weight:500;padding:4px 8px;">${focusedLocation.name}</div>`
-				);
-				focusMarkerRef.current = new goongjs.Marker({ element: el, anchor: "center" })
-					.setLngLat([focusedLocation.longitude, focusedLocation.latitude])
-					.setPopup(popup)
-					.addTo(map);
+			if (lng === undefined || lat === undefined) return;
+
+			const target = [lng, lat];
+			const currentCenter = map.getCenter();
+		
+			// Tính khoảng cách tương đối (theo độ)
+			const dLat = lat - currentCenter.lat;
+			const dLng = lng - currentCenter.lng;
+			const distance = Math.sqrt(dLat * dLat + dLng * dLng);
+
+			// Nếu xa hơn khoảng ~22km (0.2 độ), nhảy thẳng để tránh lỗi. Nếu gần thì flyTo cho mượt.
+			if (distance > 0.2) {
+				map.jumpTo({
+					center: target,
+					zoom: 15,
+				});
+			} else {
+				map.flyTo({
+					center: target,
+					zoom: 15,
+					duration: 1200,
+				});
 			}
+
+			// Luôn hiển thị marker khi có focusLocation để người dùng biết bản đồ đã nhảy đến đâu
+			// Nếu đang tìm kiếm (preview) thì hiện màu đỏ, nếu đã chọn thì hiện màu xanh
+			const markerColor = focusedLocation.isSearching ? "#ef4444" : "#3b82f6";
+			const el = createDefaultMarkerElement(markerColor);
+			
+			const popupName = focusedLocation.name || focusedLocation.address || "Vị trí đã chọn";
+			const popup = new goongjs.Popup({ offset: 25, closeButton: false }).setHTML(
+				`<div style="font-size:13px;font-weight:500;padding:4px 8px;">${popupName}</div>`
+			);
+			
+			focusMarkerRef.current = new goongjs.Marker({ element: el })
+				.setLngLat(target)
+				.setPopup(popup)
+				.addTo(map);
 		}
 	}, [focusedLocation, route]);
 
