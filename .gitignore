@@ -82,3 +82,5 @@ frontend/public/assets/images/locations/
 ._*
 Thumbs.db
 desktop.ini
+
+serviceAccountKey.json

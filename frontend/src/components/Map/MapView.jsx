@@ -7,7 +7,9 @@ import { ChevronLeft, ChevronRight, Route, Search, X, Trash2, LocateFixed, Info,
 const GOONG_MAPTILES_KEY = import.meta.env.VITE_GOONG_MAPTILES_KEY;
 const HCMC_CENTER = [106.7009, 10.7769]; // [lng, lat] cho Goong/Mapbox
 
-goongjs.accessToken = GOONG_MAPTILES_KEY;
+goongjs.accessToken = import.meta.env.VITE_GOONG_MAP_KEY;
+
+// const goongApiKey = import.meta.env.VITE_GOONG_API_KEY;
 
 // Tạo HTML cho numbered marker
 const createMarkerElement = (index, isLast = false) => {

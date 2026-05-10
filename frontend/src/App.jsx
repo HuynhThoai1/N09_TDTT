@@ -1,7 +1,11 @@
+import LoginPage from "./pages/LoginPage.jsx";
+import RegisterPage from "./pages/RegisterPage.jsx";
+import OnboardingPage from "./pages/OnboardingPage.jsx";
+
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import MainPage from "./pages/MainPage";
 import SharedRoutePage from "./pages/SharedRoutePage";
-import OnboardingPage from "./pages/OnboardingPage";
+//import OnboardingPage from "./pages/OnboardingPage";
 
 const router = createBrowserRouter([
 	//Sau này có thêm các trang khác nếu muốn
@@ -21,6 +25,15 @@ const router = createBrowserRouter([
 		path: "/onboarding",
 		element: <OnboardingPage />,
 	},
+
+    {
+        path: "/login",
+        element: <LoginPage />,
+    },
+    {
+        path: "/register",
+        element: <RegisterPage />,
+    },
 ]);
 
 function App() {

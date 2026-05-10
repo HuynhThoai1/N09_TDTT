@@ -3,8 +3,7 @@ import Sidebar from "@/components/Sidebar";
 import MapView from "@/components/Map/MapView";
 
 const getApiBase = () => {
-	if (typeof window === "undefined") return "http://localhost:8000";
-	return `${window.location.protocol}//${window.location.hostname}:8000`;
+    return "http://192.168.46.87:8000"; 
 };
 
 export default function MainPage() {

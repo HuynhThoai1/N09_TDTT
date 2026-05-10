@@ -7,6 +7,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
+from users.authentication import FirebaseAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import authentication_classes, permission_classes
+
 from .models import PointOfInterest, SharedRoute, VibeTag, UserProfile
 from .serializers import (
     POISerializer, VibeTagSerializer, UserProfileSerializer, 
@@ -67,7 +71,9 @@ def getVibeTags(request):
     return Response(list(grouped.values()))
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST', 'GET'])
+@authentication_classes([FirebaseAuthentication]) # Bắt buộc dùng Firebase Auth
+@permission_classes([IsAuthenticated])           # Bắt buộc phải đăng nhập
 def userVibes(request):
     """
     GET  — Xem thẻ vibe hiện tại (dùng cho Sidebar / Profile).
