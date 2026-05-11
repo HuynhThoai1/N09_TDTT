@@ -273,12 +273,12 @@ def format_distance(meters: float) -> str:
     if meters < 1000: return f"{round(meters)} m"
     return f"{round(meters / 1000, 1)} km"
 
-def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text: str = "") -> list:
+def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text: str = "", user_vibes: list = None) -> list:
     if len(mandatory_stops) < 1: return []
     
     # Chuẩn bị dữ liệu
     all_start = time.time()
-    top_bonus = bonus_candidates[:20] # Lấy rộng hơn để phân loại
+    top_bonus = bonus_candidates[:10] # Giới hạn 10 điểm để tránh vượt quá giới hạn Goong API (ma trận 11x11 = 121 ô)
     for i, b in enumerate(top_bonus):
         if "id" not in b: b["id"] = b.get("poi_id", f"bonus_{i}")
     
@@ -358,10 +358,8 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
     # --- CHẾ ĐỘ 2: GỢI Ý Ý TƯỞNG (Chỉ có 1 điểm bắt đầu) ---
     else:
         print(f"[ItineraryOptimizer] Intent-driven mode active for prompt: {prompt_text}")
-        print(f"[ItineraryOptimizer] top_bonus count: {len(top_bonus)}, time_matrix: {'OK' if time_matrix else 'NONE'}")
         
         if not top_bonus:
-            # Không có gợi ý AI → trả về mỗi điểm xuất phát
             routes.append({
                 "id": "route_default",
                 "label": "Điểm xuất phát",
@@ -372,119 +370,87 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
                 "distance_text": "0 km",
             })
             return routes
-        
-        # Nếu time_matrix bị lỗi → dùng fallback chia theo chủ đề để luôn có 3 route
-        if not time_matrix:
-            print("[ItineraryOptimizer] time_matrix failed! Generating 3 thematic routes as fallback...")
             
-            # 1. Tinh túy (Top similarity)
-            w1 = mandatory_stops + sorted(top_bonus, key=lambda x: x.get("similarity_score", 0), reverse=True)[:3]
-            g1 = get_route_directions(w1)
-            routes.append({
-                "id": "route_best_match",
-                "label": "Gợi ý: Tinh túy nhất",
-                "theme": "thematic",
-                "description": "Các địa điểm có độ tương đồng cao nhất với yêu cầu của bạn.",
-                "ai_reason": _generate_ai_reason(w1, prompt_text),
-                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w1)],
-                "polyline": g1["geometry_coords"] if g1 else None,
-                "duration_text": format_duration(g1["total_seconds"]) if g1 else "N/A",
-                "distance_text": format_distance(g1["total_meters"]) if g1 else "N/A",
-                "total_stops": len(w1),
-            })
-
-            # 2. Ẩm thực (Lọc quán ăn/cafe)
-            culinary = [p for p in top_bonus if p.get('category') in ['restaurant', 'cafe', 'bar', 'pub']]
-            w2 = mandatory_stops + (culinary[:3] if culinary else top_bonus[1:4])
-            g2 = get_route_directions(w2)
-            routes.append({
-                "id": "route_culinary",
-                "label": "Gợi ý: Ẩm thực & Thư giãn",
-                "theme": "balanced",
-                "description": "Tập trung vào các trải nghiệm ăn uống và không gian thoải mái.",
-                "ai_reason": f"Ưu tiên các địa điểm ẩm thực phù hợp với không khí '{prompt_text}'.",
-                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w2)],
-                "polyline": g2["geometry_coords"] if g2 else None,
-                "duration_text": format_duration(g2["total_seconds"]) if g2 else "N/A",
-                "distance_text": format_distance(g2["total_meters"]) if g2 else "N/A",
-                "total_stops": len(w2),
-            })
-
-            # 3. Khám phá (Các điểm tham quan)
-            activity = [p for p in top_bonus if p.get('category') in ['museum', 'attraction', 'viewpoint', 'park']]
-            w3 = mandatory_stops + (activity[:3] if activity else top_bonus[2:5])
-            g3 = get_route_directions(w3)
-            routes.append({
-                "id": "route_activity",
-                "label": "Gợi ý: Khám phá & Trải nghiệm",
-                "theme": "fast",
-                "description": "Hành trình bao gồm các hoạt động vui chơi và tham quan đặc sắc.",
-                "ai_reason": "Kết hợp giữa tham quan và vận động nhẹ nhàng theo nhu cầu của bạn.",
-                "waypoints": [{**w, "is_mandatory": i == 0} for i, w in enumerate(w3)],
-                "polyline": g3["geometry_coords"] if g3 else None,
-                "duration_text": format_duration(g3["total_seconds"]) if g3 else "N/A",
-                "distance_text": format_distance(g3["total_meters"]) if g3 else "N/A",
-                "total_stops": len(w3),
-            })
-            return routes
-
-        # Phân loại Bonus Candidates
-        culinary_cands = [p for p in top_bonus if p.get('category') in ['restaurant', 'cafe', 'bar', 'pub']]
-        activity_cands = [p for p in top_bonus if p.get('category') in ['museum', 'attraction', 'viewpoint', 'park', 'cinema', 'mall']]
+        # Phục hồi lỗi time_matrix (nếu Goong API lỗi, dùng ma trận 0 để thuật toán Di truyền không bị crash)
+        if not time_matrix:
+            print("[WARNING] time_matrix is None! Using dummy matrix for fallback...")
+            time_matrix = [[0.0 for _ in range(len(all_points))] for _ in range(len(all_points))]
+            
+        from .ai_services import calculate_route_score_v1
         
-        # 1. Route Tinh túy (Best Similarity)
-        opt1 = GeneticOptimizer(mandatory_stops, top_bonus[:8], time_matrix, all_points, max_bonus=2)
-        w1 = opt1.solve()
-        g1 = get_route_directions(w1)
-        routes.append({
-            "id": "route_best_match",
-            "label": "Gợi ý: Tinh túy nhất",
-            "theme": "thematic",
-            "description": "Các địa điểm có độ tương đồng cao nhất với yêu cầu của bạn.",
-            "ai_reason": _generate_ai_reason(w1, prompt_text),
-            "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w1)],
-            "polyline": g1["geometry_coords"] if g1 else None,
-            "duration_text": format_duration(g1["total_seconds"]) if g1 else "N/A",
-            "distance_text": format_distance(g1["total_meters"]) if g1 else "N/A",
-            "total_stops": len(w1),
-        })
-
-        # 2. Route Ẩm thực & Thư giãn
-        cands2 = culinary_cands[:10] if culinary_cands else top_bonus[:10]
-        opt2 = GeneticOptimizer(mandatory_stops, cands2, time_matrix, all_points, max_bonus=3)
-        w2 = opt2.solve()
-        g2 = get_route_directions(w2)
-        routes.append({
-            "id": "route_culinary",
-            "label": "Gợi ý: Ẩm thực & Thư giãn",
-            "theme": "balanced",
-            "description": "Tập trung vào các trải nghiệm ăn uống và không gian thoải mái.",
-            "ai_reason": f"Vì bạn muốn '{prompt_text}', chúng tôi ưu tiên các nhà hàng và quán cafe có phong cách phù hợp.",
-            "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w2)],
-            "polyline": g2["geometry_coords"] if g2 else None,
-            "duration_text": format_duration(g2["total_seconds"]) if g2 else "N/A",
-            "distance_text": format_distance(g2["total_meters"]) if g2 else "N/A",
-            "total_stops": len(w2),
-        })
-
-        # 3. Route Khám phá & Trải nghiệm
-        t_proposal_start = time.time()
-        cands3 = activity_cands[:10] if activity_cands else top_bonus[5:15]
-        opt3 = GeneticOptimizer(mandatory_stops, cands3, time_matrix, all_points, max_bonus=3)
-        w3 = opt3.solve()
-        g3 = get_route_directions(w3)
-        print(f"[Optimizer] Proposal Mode complete: {round(time.time() - t_proposal_start, 3)}s total for 3 routes.")
-        routes.append({
-            "id": "route_activity",
-            "label": "Gợi ý: Khám phá & Trải nghiệm",
-            "theme": "fast",
-            "description": "Hành trình bao gồm các hoạt động vui chơi và tham quan đặc sắc.",
-            "ai_reason": "Dựa trên nhu cầu của bạn, đây là lộ trình kết hợp giữa tham quan và vận động nhẹ nhàng.",
-            "waypoints": [{**w, "is_mandatory": i==0} for i, w in enumerate(w3)],
-            "polyline": g3["geometry_coords"] if g3 else None,
-            "duration_text": format_duration(g3["total_seconds"]) if g3 else "N/A",
-            "distance_text": format_distance(g3["total_meters"]) if g3 else "N/A",
-            "total_stops": len(w3),
-        })
-
+        # Bước 1: Sinh ra 10 tập ứng viên khác nhau
+        candidate_subsets = []
+        
+        # 1. Tinh túy nhất
+        candidate_subsets.append(sorted(top_bonus, key=lambda x: x.get("similarity_score", 0), reverse=True)[:5])
+        # 2. Ẩm thực
+        candidate_subsets.append([p for p in top_bonus if p.get('category') in ['restaurant', 'cafe', 'bar', 'pub']][:5])
+        # 3. Khám phá
+        candidate_subsets.append([p for p in top_bonus if p.get('category') in ['museum', 'attraction', 'viewpoint', 'park', 'cinema', 'mall']][:5])
+        
+        # 4-10. Random mixes
+        for _ in range(7):
+            num_points = random.randint(3, 5)
+            sample = random.sample(top_bonus, min(num_points, len(top_bonus)))
+            candidate_subsets.append(sample)
+            
+        # Optimize each subset slightly to get a valid order
+        candidate_routes = []
+        point_to_idx = {str(p.get("poi_id") or p.get("id")): i for i, p in enumerate(all_points)}
+        
+        for subset in candidate_subsets:
+            if not subset: continue
+            opt = GeneticOptimizer(mandatory_stops, subset, time_matrix, all_points, max_bonus=3)
+            # Chạy nhanh (ít generations) để lấy thứ tự tốt
+            w = opt.solve(generations=20, pop_size=20) 
+            if w and w not in [c["waypoints"] for c in candidate_routes]:
+                # Tự tính total_seconds từ time_matrix để không phải gọi Goong Directions cho tất cả 10 routes
+                total_seconds = 0
+                if time_matrix is not None:
+                    for i in range(len(w) - 1):
+                        idx1 = point_to_idx.get(str(w[i].get("poi_id") or w[i].get("id")))
+                        idx2 = point_to_idx.get(str(w[i+1].get("poi_id") or w[i+1].get("id")))
+                        if idx1 is not None and idx2 is not None:
+                            total_seconds += time_matrix[idx1][idx2]
+                            
+                # Tính Score V1
+                score_v1 = calculate_route_score_v1(w, prompt_text, user_vibes, total_seconds=total_seconds)
+                
+                candidate_routes.append({
+                    "waypoints": w,
+                    "total_seconds_est": total_seconds,
+                    "score_v1": score_v1
+                })
+                
+        # Sắp xếp theo Score_V1 và lấy Top 3
+        candidate_routes.sort(key=lambda x: x["score_v1"], reverse=True)
+        top_3_candidates = candidate_routes[:3]
+        
+        # Gọi Goong Directions thực tế cho Top 3
+        for i, cand in enumerate(top_3_candidates):
+            w = cand["waypoints"]
+            g = get_route_directions(w)
+            
+            # Gán vào routes array như format chuẩn
+            routes.append({
+                "id": f"route_top_{i+1}",
+                "label": "Tốt nhất" if i == 0 else (f"Lựa chọn {i+1}"),
+                "theme": "thematic" if i == 0 else ("balanced" if i == 1 else "fast"),
+                "score_v1": cand["score_v1"],
+                "description": f"Lộ trình được AI chấm điểm phù hợp thứ {i+1}.",
+                "waypoints": [{**wp, "is_mandatory": j==0} for j, wp in enumerate(w)],
+                "polyline": g["geometry_coords"] if g else None,
+                "duration_text": format_duration(g["total_seconds"]) if g else format_duration(cand["total_seconds_est"]),
+                "distance_text": format_distance(g["total_meters"]) if g else "N/A",
+                "total_stops": len(w),
+            })
+            
+        # Bước 2: AI Chấm điểm (Gemini — 1 API call duy nhất, không storytelling)
+        from .ai_services import evaluate_routes_with_gemini
+        routes = evaluate_routes_with_gemini(routes, prompt_text)
+        
+        # Bước 3: Storytelling local (không tốn quota API)
+        for route in routes:
+            route["ai_reason"] = _generate_ai_reason(route.get("waypoints", []), prompt_text)
+            
     return routes

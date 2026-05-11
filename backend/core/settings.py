@@ -19,9 +19,8 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Load environment variables (Ưu tiên backend/.env, sau đó mới đến root .env)
-load_dotenv(os.path.join(BASE_DIR, '.env')) # backend/.env
-load_dotenv(os.path.join(BASE_DIR, '..', '.env')) # root .env
+# Load environment variables (Chỉ load từ backend/.env để tránh xung đột với các file khác)
+load_dotenv(os.path.join(BASE_DIR, '.env'), override=True)
 
 
 # Quick-start development settings - unsuitable for production
