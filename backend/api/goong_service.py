@@ -122,7 +122,10 @@ def goong_distance_matrix(origins, destinations, vehicle="car"):
     }
     try:
         response = requests.get(url, params=params, timeout=15)
-        return response.json()
+        data = response.json()
+        if "error" in data or data.get("status") != "OK":
+            print(f"[Goong API Response] Distance Matrix ERROR: {data}")
+        return data
     except Exception as e:
         print(f"[Goong API Error] Distance Matrix: {e}")
         return {"error": str(e)}
@@ -142,7 +145,10 @@ def goong_directions(origin, destination, vehicle="car"):
     }
     try:
         response = requests.get(url, params=params, timeout=15)
-        return response.json()
+        data = response.json()
+        if "error" in data or not data.get("routes"):
+            print(f"[Goong API Response] Direction ERROR: {data}")
+        return data
     except Exception as e:
         print(f"[Goong API Error] Direction: {e}")
         return {"error": str(e)}

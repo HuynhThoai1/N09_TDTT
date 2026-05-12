@@ -80,43 +80,11 @@ export default function Sidebar({
 	const isSelectingRef = useRef(false);
 
 	// AI Callback Interview States
-	const [showAIQuestions, setShowAIQuestions] = useState(true);
+	const [showAIQuestions, setShowAIQuestions] = useState(false);
 	const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 	const [aiAnswers, setAIAnswers] = useState({});
 	const [otherAnswer, setOtherAnswer] = useState("");
-
-	const aiQuestions = [
-		{
-			id: 1,
-			question: "Chuyến đi này bạn dự định đi cùng ai?",
-			options: [
-				{ id: "A", text: "Đi một mình" },
-				{ id: "B", text: "Cùng người yêu/bạn đời" },
-				{ id: "C", text: "Cùng gia đình (trẻ nhỏ/người già)" },
-				{ id: "D", text: "Nhóm bạn thân" },
-			],
-		},
-		{
-			id: 2,
-			question: "Mức độ vận động mong muốn của bạn?",
-			options: [
-				{ id: "A", text: "Nhẹ nhàng (Thư giãn, cafe)" },
-				{ id: "B", text: "Vừa phải (Đi bộ, tham quan)" },
-				{ id: "C", text: "Năng động (Hoạt động ngoài trời)" },
-				{ id: "D", text: "Thử thách (Leo trèo, khám phá)" },
-			],
-		},
-		{
-			id: 3,
-			question: "Ngân sách dự kiến cho các hoạt động?",
-			options: [
-				{ id: "A", text: "Tiết kiệm nhất có thể" },
-				{ id: "B", text: "Phổ thông (Cân đối)" },
-				{ id: "C", text: "Thoải mái (Sang chảnh)" },
-				{ id: "D", text: "Không giới hạn" },
-			],
-		},
-	];
+	const [aiQuestions, setAiQuestions] = useState([]);
 
 	const handleSearchChange = (e) => {
 		const val = e.target.value;
@@ -250,18 +218,7 @@ export default function Sidebar({
 
 	const runSmartItinerary = async () => {
 		if (stops.length < 1) return;
-		setShowAIQuestions(true);
-		setCurrentQuestionIndex(0);
-	};
-
-	const handleFinishAIQuestions = async () => {
 		setIsGenerating(true);
-		setShowAIQuestions(false);
-
-		const vibeContext =
-			userVibes.length > 0
-				? ". Ưu tiên: " + userVibes.map((v) => v.label).join(", ")
-				: "";
 
 		const payload = {
 			stops: stops.map((s) => ({
@@ -270,62 +227,121 @@ export default function Sidebar({
 				latitude: s.latitude,
 				longitude: s.longitude,
 			})),
-			prompt_text: goalText.trim() + vibeContext,
+			prompt_text: goalText.trim(),
+			is_confirmed: false,
 		};
 
-		console.log("[FE] Gửi lên /api/smart-itinerary/:", payload);
+		try {
+			const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+
+			const result = await response.json();
+
+			if (result.status === "needs_clarification") {
+				setIsGenerating(false);
+				setAiQuestions(result.questions);
+				setShowAIQuestions(true);
+				setCurrentQuestionIndex(0);
+				setAIAnswers({});
+			} else {
+				// Nếu đủ thông tin, xử lý kết quả luôn
+				handleAIResponse(result);
+			}
+		} catch (error) {
+			console.error("Lỗi khi kiểm tra prompt:", error);
+			setIsGenerating(false);
+		}
+	};
+
+	const handleAIResponse = (result) => {
+		console.log("[FE] Kết quả Smart Itinerary:", result);
+
+		// Chuyển đổi format routes từ backend sang format frontend
+		const suggestionsList = (result.routes || []).map((r) => ({
+			id: r.id,
+			label: r.label,
+			theme: r.theme,
+			description: r.description,
+			duration: r.total_time,
+			distance: r.total_distance,
+			ai_reason: r.ai_reason,
+			duration_text: r.duration_text,
+			total_stops: r.total_stops,
+			totalDuration: r.duration_text || "Chưa rõ",
+			totalDistance: r.distance_text || "Chưa rõ",
+			waypoints: r.waypoints || [],
+			polyline: r.polyline || null,
+			stops: (r.pois || []).map((p) => ({
+				id: p.id || p.poi_id,
+				name: p.name,
+				latitude: p.latitude,
+				longitude: p.longitude,
+				image: resolveImageUrl(p.image),
+				category: p.category,
+				reason: p.reason,
+			})),
+		}));
+
+		onResetShortestPath?.();
+		onRouteSuggestionsChange(suggestionsList);
+		setSelectedSuggestionId(null);
+		onSelectedRouteChange(null);
+		onDetailLocationChange(null);
+		onFocusLocation(null);
+		setExpandedRouteId(null);
+		setActiveTab("results");
+
+		setIsGenerating(false);
+	};
+
+	const handleFinishAIQuestions = async () => {
+		setIsGenerating(true);
+		setShowAIQuestions(false);
+
+		// Chuyển đổi câu trả lời sang format text
+		const clarificationPayload = {};
+		aiQuestions.forEach((q, idx) => {
+			const answerId = aiAnswers[idx];
+			if (answerId === "Other") {
+				clarificationPayload[q.question] = otherAnswer;
+			} else {
+				const option = q.options.find((o) => o.id === answerId);
+				clarificationPayload[q.question] = option ? option.text : "";
+			}
+		});
+
+		const payload = {
+			stops: stops.map((s) => ({
+				id: s.id || s.poi_id,
+				name: s.name,
+				latitude: s.latitude,
+				longitude: s.longitude,
+			})),
+			prompt_text: goalText.trim(),
+			is_confirmed: true,
+			ai_clarification: clarificationPayload,
+		};
+
+		console.log("[FE] Gửi lại với xác nhận:", payload);
 
 		try {
-			const response = await fetch(
-				`${getApiBase()}/api/smart-itinerary/`,
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(payload),
-				},
-			);
+			const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
 
 			if (!response.ok) {
 				throw new Error(`HTTP ${response.status}`);
 			}
 
 			const result = await response.json();
-			console.log("[FE] Kết quả Smart Itinerary:", result);
-
-			// Chuyển đổi format routes từ backend sang format frontend
-			const suggestionsList = (result.routes || []).map((r) => ({
-				id: r.id,
-				label: r.label,
-				theme: r.theme,
-				description: r.description,
-				ai_reason: r.ai_reason,
-				duration_text: r.duration_text,
-				total_stops: r.total_stops,
-				totalDuration: r.duration_text || "Chưa rõ",
-				totalDistance: r.distance_text || "Chưa rõ",
-				waypoints: r.waypoints || [],
-				// Polyline thực tế từ OSRM để vẽ lên bản đồ
-				polyline: r.polyline || null,
-			}));
-
-			onResetShortestPath?.();
-			onRouteSuggestionsChange(suggestionsList);
-			setSelectedSuggestionId(null);
-			onSelectedRouteChange(null);
-			onDetailLocationChange(null);
-			onFocusLocation(null);
-			setExpandedRouteId(null);
-			setActiveTab("results");
-		} catch (err) {
-			console.error("[FE] Lỗi khi gọi Smart Itinerary API:", err);
-			onRouteSuggestionsChange([]);
-			setSelectedSuggestionId(null);
-			onSelectedRouteChange(null);
-			onDetailLocationChange(null);
-			onFocusLocation(null);
-			setExpandedRouteId(null);
-			setActiveTab("results");
-		} finally {
+			handleAIResponse(result);
+		} catch (error) {
+			console.error("Lỗi khi gửi clarification:", error);
 			setIsGenerating(false);
 		}
 	};
