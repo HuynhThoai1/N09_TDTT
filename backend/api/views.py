@@ -137,8 +137,14 @@ def smartItinerary(request):
     if len(raw_stops) < 1:
         return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
 
+    user_vibes = []
     if request.user.is_authenticated:
         prompt_text = _build_prompt_with_vibes(request.user, prompt_text)
+        try:
+            profile = request.user.profile
+            user_vibes = list(profile.vibes.values('label'))
+        except Exception:
+            pass
 
     # Làm giàu dữ liệu Stops từ Database 
     enriched_stops = []
@@ -199,7 +205,8 @@ def smartItinerary(request):
     routes = build_top3_routes(
         mandatory_stops=enriched_stops,
         bonus_candidates=bonus_candidates,
-        prompt_text=prompt_text
+        prompt_text=prompt_text,
+        user_vibes=user_vibes
     )
 
     # Fix path ảnh 

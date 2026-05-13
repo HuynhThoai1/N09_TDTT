@@ -4,7 +4,7 @@ import requests
 GOONG_BASE_URL = "https://rsapi.goong.io"
 
 def get_api_key():
-    key = os.getenv("GOONG_API_KEY", "")
+    key = os.getenv("GOONG_API_KEY", "").strip()
     if not key:
         print("[WARNING] GOONG_API_KEY not configured in .env!")
     return key
@@ -54,7 +54,10 @@ def goong_autocomplete(input_text, location=None, limit=10):
         params["location"] = location
     try:
         response = requests.get(url, params=params, timeout=10)
-        return response.json()
+        data = response.json()
+        if "error" in data or "predictions" not in data:
+            print(f"[Goong API Response] AutoComplete: {data}")
+        return data
     except Exception as e:
         print(f"[Goong API Error] AutoComplete: {e}")
         return {"error": str(e)}
