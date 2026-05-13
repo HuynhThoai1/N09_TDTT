@@ -1,84 +1,67 @@
-## BÁO CÁO MODULE: QUẢN LÝ NGƯỜI DÙNG, BẢO MẬT & CÁ NHÂN HÓA (Auth, Security & User Profile)
-## 1. Mục tiêu
-- Xây dựng hệ thống định danh người dùng (Authentication) tập trung thay thế cho việc lưu trữ cục bộ (localStorage).
+# BÁO CÁO CHI TIẾT QUÁ TRÌNH PHÁT TRIỂN MODULE PROFILE
+**Người thực hiện:** Phạm Văn Hữu Tài  
+**Thời gian thực hiện:** 10/05/2026 - Nay  
+**Dự án:** n09_tdtt (Routing Engine & Management System)
 
-- Bảo mật các luồng giao tiếp giữa Frontend và Backend thông qua chuẩn token (JWT).
+---
 
-- Cung cấp giao diện quản lý hồ sơ cá nhân cho người dùng (đổi tên, mật khẩu).
+## 1. TỔNG QUAN CÔNG VIỆC
+Kể từ ngày 10/05, tôi đã chịu trách nhiệm phát triển trọn vẹn tính năng **Quản lý hồ sơ cá nhân (Profile Module)**. Đây là một tính năng Full-stack đòi hỏi sự phối hợp chặt chẽ giữa giao diện người dùng, hệ thống xác thực Firebase và cơ sở dữ liệu SQL Server thông qua Django.
 
-- Tích hợp mượt mà dữ liệu Sở thích (Vibes) của người dùng vào giao diện để hỗ trợ hệ thống AI gợi ý lộ trình, đồng thời không làm gián đoạn các tính năng tương tác có sẵn của nhóm.
+---
 
-##  2. Tính năng chính đã triển khai
-- Xác thực Firebase (Firebase Auth): Hỗ trợ Đăng ký, Đăng nhập bằng Email/Password và Đăng xuất.
+## 2. CHI TIẾT CÁC THAY ĐỔI THEO TỪNG THÀNH PHẦN
 
-- Bảo mật phiên (Session) bằng JWT: Tự động lấy IdToken từ Firebase làm JWT Bearer Token để xác thực các API request gửi lên Backend Django.
+### A. FRONTEND (ReactJS)
 
-- Quản lý Hồ sơ cá nhân (Profile Modal): Giao diện dạng Popup (Modal) cho phép người dùng theo dõi Email, cập nhật Tên hiển thị (Display Name) và thay đổi Mật khẩu an toàn.
+#### 📄 Tạo mới: `frontend/src/components/ProfileModal.jsx`
+* **Giao diện:** Thiết kế Modal đa năng sử dụng Tailwind CSS, hỗ trợ hiển thị thông tin và tương tác người dùng.
+* **Logic xử lý:** * Sử dụng `useEffect` để tự động gọi API lấy dữ liệu ngay khi mở Modal.
+    * Tích hợp Firebase Authentication để xử lý Token xác thực.
+    * Viết hàm `handleSave` để đồng bộ dữ liệu SĐT và Ngày sinh xuống Backend.
+    * Tích hợp logic đổi mật khẩu an toàn với tính năng `re-authenticate` của Firebase.
 
-- Tích hợp UI Cá nhân hóa: Thanh Sidebar tự động thay đổi trạng thái theo thời gian thực (ẩn nút Đăng nhập, hiện Email/Avatar khi có user). Tự động fetch và hiển thị các "Thẻ sở thích" (Vibes) ngay khi đăng nhập thành công.
+#### 📄 Chỉnh sửa: `frontend/src/components/Sidebar.jsx`
+* **Mục đích:** Tạo điểm chạm để người dùng truy cập vào Profile.
+* **Thay đổi:** * Khởi tạo State `isProfileOpen` để điều khiển đóng/mở Modal.
+    * Gắn Component `ProfileModal` vào cấu trúc Sidebar.
+    * Thêm sự kiện `onClick` vào mục "Hồ sơ" để kích hoạt Modal.
 
-- Bảo mật mã nguồn: Triển khai quản lý biến môi trường qua file .env, ẩn toàn bộ các API Keys (Goong Map) và Base URL.
+#### 📄 Chỉnh sửa: `frontend/src/pages/LoginPage.jsx`
+* **Thay đổi:** * Cập nhật luồng xử lý sau khi đăng nhập thành công để đảm bảo ID Token được lưu trữ sẵn sàng cho các yêu cầu API sau đó.
+    * Thêm lệnh gọi API khởi tạo bản ghi Profile tại Backend cho người dùng mới trong lần đầu đăng nhập.
 
-##  3. Files chính thay đổi và bổ sung
-frontend/src/components/Sidebar.jsx (Cập nhật lớn)
+---
 
-- Thêm state quản lý user: user, userVibes, isProfileOpen.
+### B. BACKEND (Django & SQL Server)
 
-- Sử dụng hook onAuthStateChanged để lắng nghe thay đổi phiên đăng nhập.
+#### 📄 Chỉnh sửa: `backend/models.py`
+* **Nội dung:** Mở rộng bảng dữ liệu người dùng của đồng đội.
+* **Thay đổi:** * Thêm trường `phone = models.CharField(max_length=15, blank=True, null=True)`
+    * Thêm trường `birth_date = models.DateField(null=True, blank=True)`
+    * Thực hiện Migration để cập nhật cấu trúc Database SQL Server.
 
-- Tích hợp hàm fetchUserVibes đính kèm header Authorization: Bearer <token>.
+#### 📄 Chỉnh sửa: `backend/views.py`
+* **Nội dung:** Viết logic xử lý API cho Profile.
+* **Thay đổi:** * Tạo `ProfileView(APIView)` với phương thức `GET` để trả về dữ liệu cá nhân.
+    * Tạo phương thức `POST` để tiếp nhận và lưu trữ thông tin từ Frontend gửi lên, sử dụng `get_or_create` để tránh trùng lặp dữ liệu.
 
-- Xử lý gộp code (merge) thành công với giao diện Câu hỏi AI (AIClarification) của team, đảm bảo 2 tính năng chạy song song mượt mà.
+#### 📄 Chỉnh sửa: `backend/urls.py`
+* **Nội dung:** Cấu hình định tuyến.
+* **Thay đổi:** Thêm `path('api/profile/', ProfileView.as_view())` vào danh sách urlpatterns để kết nối Frontend với Backend.
 
-- Thêm hàm getApiBase() linh hoạt đọc từ biến môi trường.
+---
 
-frontend/src/components/ProfileModal.jsx (File mới)
+## 3. CÁC QUYẾT ĐỊNH KỸ THUẬT & TỐI ƯU HÓA
+Trong quá trình triển khai, tôi đã thực hiện một số điều chỉnh quan trọng để tối ưu hệ thống:
 
-- UI/UX hiển thị dạng modal overlay (chống làm gián đoạn bản đồ).
+1. **Loại bỏ Firebase Storage:** Do yêu cầu về chi phí của gói Google Blaze, tôi đã chủ động xóa bỏ tính năng lưu ảnh trên Cloud và các đoạn code `uploadBytes`, `getDownloadURL`. Điều này giúp hệ thống gọn nhẹ, tránh lỗi CORS và không tốn phí duy trì.
+2. **Lưu trữ tập trung:** Chuyển toàn bộ việc quản lý thông tin hồ sơ về Django và SQL Server của nhóm thay vì phân tán dữ liệu ở các dịch vụ bên ngoài.
+3. **Dọn dẹp mã nguồn:** Xóa bỏ các thư viện và file cấu hình dư thừa liên quan đến Firebase Storage để mã nguồn sạch sẽ, dễ bảo trì cho các thành viên khác trong nhóm.
 
-- Sử dụng các hàm updateProfile và updatePassword của Firebase.
+---
 
-- Xử lý validation: báo lỗi (mật khẩu ngắn, yêu cầu đăng nhập lại) và thông báo thành công.
-
-frontend/src/components/Map/MapView.jsx (Cập nhật nhỏ)
-
-- Chuyển goongjs.accessToken từ dạng hardcode sang đọc từ import.meta.env.VITE_GOONG_MAP_KEY.
-
-.env (Bổ sung cấu hình)
-
-- Khai báo các biến: VITE_API_BASE_URL, VITE_GOONG_MAP_KEY, VITE_GOONG_API_KEY.
-
-## 4. Luồng xử lý nghiệp vụ & API
-1. Người dùng tiến hành đăng nhập tại /login.
-
-2. Firebase trả về đối tượng currentUser. Trình duyệt lưu trạng thái phiên.
-
-3. Hook onAuthStateChanged trong Sidebar bắt được sự kiện có user.
-
-4. Frontend gọi currentUser.getIdToken() để lấy chuỗi JWT.
-
-5. Frontend gọi GET /api/profile/vibes/ kèm Header Authorization: Bearer <JWT>.
-
-6. Backend Django giải mã JWT, xác thực danh tính và trả về danh sách Vibes tương ứng.
-
-7. Frontend cập nhật state userVibes và render các thẻ sở thích lên giao diện.
-
-## 5. Vấn đề kỹ thuật đã xử lý (Troubleshooting)
-Xung đột mã nguồn (Merge Conflict) với Module AI:
-
-- Vấn đề: Khi tích hợp code Firebase vào Sidebar, tính năng AIClarification (Câu hỏi phụ của AI) bị ghi đè/biến mất.
-
-- Khắc phục: Tiến hành merge thủ công, phân tách rõ ràng khối State của Auth và State của AI. Giữ nguyên logic gọi /api/smart-itinerary/ của team.
-
-Lỗi Invalid hook call (Trắng màn hình - White Screen):
-
-- Vấn đề: Khai báo useState ngoài phạm vi Functional Component khiến React DOM crash khi render.
-
-- Khắc phục: Di chuyển các khai báo state (isProfileOpen) vào đúng vùng cấp phát bên trong hàm export default function Sidebar.
-
-Bảo mật Hardcode Key:
-
-- Khắc phục: Đưa các giá trị nhạy cảm vào .env và hướng dẫn team sử dụng lệnh khởi động lại server (npm run dev) để Vite nhận diện biến môi trường mới.
-
-## 6. Kết luận
-Module Quản lý người dùng đã hoàn thành 100% mục tiêu đề ra, chính thức giải quyết hạn chế của việc lưu trữ tạm qua localStorage. Hệ thống hiện tại đã sẵn sàng cho môi trường Production với luồng xác thực bảo mật chặt chẽ bằng JWT và khả năng tùy biến cá nhân hóa toàn diện. Luồng dữ liệu giữa AI - Map - User đã hoàn toàn thông suốt.
+## 4. KẾT QUẢ ĐẠT ĐƯỢC
+* Module Profile hoạt động ổn định, đồng bộ hóa tốt với hệ thống Login hiện tại.
+* Dữ liệu người dùng được bảo mật thông qua Token Firebase.
+* Giao diện đồng nhất với bộ nhận diện của dự án n09_tdtt.

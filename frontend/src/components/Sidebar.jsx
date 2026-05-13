@@ -426,7 +426,7 @@ export default function Sidebar({
 					</div>
 
 					<div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
-						{/* TAB 1: LÊN KẾ HOẠCH */}
+						{/*LÊN KẾ HOẠCH */}
 						<div className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "plan" ? "" : "hidden"}`}>
 							<div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col custom-scrollbar">
 								<div className="space-y-3 relative shrink-0">
@@ -665,7 +665,7 @@ export default function Sidebar({
 							</div>
 						</div>
 
-						{/* TAB 2: CHI TIẾT */}
+						{/*CHI TIẾT */}
 						<div className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "detail" ? "" : "hidden"}`}>
 							<div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-900/10 space-y-4">
 								{displayDetail ? (
@@ -745,7 +745,7 @@ export default function Sidebar({
 							</div>
 						</div>
 
-						{/* TAB 3: KẾT QUẢ */}
+						{/*KẾT QUẢ */}
 						<div className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "results" ? "" : "hidden"}`}>
 							<div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-900/10 space-y-4 min-h-0">
 								{routeSuggestions.length === 0 ? (
@@ -832,30 +832,31 @@ export default function Sidebar({
 						</div>
 					</div>
 
-
-					{/* UI ĐĂNG NHẬP*/}
-					<div className="p-4 border-t border-slate-800 bg-slate-900/50 shrink-0 z-10">
-						{user ? (
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-3 overflow-hidden cursor-pointer hover:bg-white/5 p-1 rounded-lg transition-colors" 
-									onClick={() => setIsProfileOpen(true)}>
-									<div className="w-8 h-8 shrink-0 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
-										{user.email?.charAt(0).toUpperCase()}
-									</div>
-									<div className="text-sm font-medium text-slate-300 truncate w-32" title="Bấm để xem hồ sơ">
-										{user.email}
-									</div>
-								</div>
-								<button onClick={handleLogout} className="text-xs text-red-400 hover:text-red-300 px-2 py-1.5 rounded transition-colors">
-									Đăng xuất
-								</button>
+					{/* KHU VỰC NGƯỜI DÙNG Ở ĐÁY SIDEBAR */}
+					<div className="mt-auto p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between gap-3">
+						
+						{/*Hiển thị Avatar & Họ Tên*/}
+						<button 
+							onClick={() => setIsProfileOpen(true)}
+							className="flex-1 flex items-center gap-3 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all shadow-md border border-slate-700 group"
+						>
+							<div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">
+								{user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
 							</div>
-						) : (
-							<button onClick={() => navigate('/login')} className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors">
-								Đăng nhập / Đăng ký
-							</button>
-						)}
+							<span className="text-sm font-medium text-white truncate max-w-[130px] group-hover:text-blue-400 transition-colors">
+								{user?.displayName || user?.email || "Người dùng"}
+							</span>
+						</button>
+
+						{/*Nút Đăng xuất*/}
+						<button 
+							onClick={handleLogout}
+							className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-all shadow-sm border border-red-500/20"
+						>
+							Đăng xuất
+						</button>
 					</div>
+					
 				</div>
 			</aside>
 			
