@@ -1,3 +1,4 @@
+import OnboardingModal from "../pages/OnboardingPage";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { getUserVibes } from "../lib/vibeApi";
@@ -54,6 +55,7 @@ export default function Sidebar({
 	onResetShortestPath,
 	onReviewSelectedRoute,
 }) {
+	const [showVibeModal, setShowVibeModal] = useState(false);
 	const [isOpen, setIsOpen] = useState(true);
 	const [heroImageOverride, setHeroImageOverride] = useState(null);
 	const [activeTab, setActiveTab] = useState("plan");
@@ -130,7 +132,7 @@ export default function Sidebar({
 	useEffect(() => {
 		getUserVibes()
 			.then((data) => setUserVibes(data.vibes || []))
-			.catch(() => {}); // Chưa đăng nhập thì bỏ qua
+			.catch(() => { }); // Chưa đăng nhập thì bỏ qua
 	}, []);
 
 	useEffect(() => {
@@ -534,11 +536,10 @@ export default function Sidebar({
 									return (
 										<div
 											key={`${s.id}-${i}`}
-											className={`flex flex-col text-sm text-slate-300 bg-slate-800/40 p-3 rounded-xl transition-all group border border-transparent shrink-0 ${
-												isDuplicate
-													? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
-													: "hover:bg-slate-800/60 hover:border-slate-700/50 shadow-sm shadow-black/20"
-											}`}
+											className={`flex flex-col text-sm text-slate-300 bg-slate-800/40 p-3 rounded-xl transition-all group border border-transparent shrink-0 ${isDuplicate
+												? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
+												: "hover:bg-slate-800/60 hover:border-slate-700/50 shadow-sm shadow-black/20"
+												}`}
 										>
 											<div className="flex items-start gap-3 min-w-0">
 												<div className="flex flex-col items-center shrink-0 pt-1.5">
@@ -637,8 +638,7 @@ export default function Sidebar({
 										<button
 											type="button"
 											onClick={() =>
-												navigate("/onboarding")
-											}
+												setShowVibeModal(true)}
 											className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
 										>
 											✏️ Chỉnh sửa
@@ -660,8 +660,7 @@ export default function Sidebar({
 										<button
 											type="button"
 											onClick={() =>
-												navigate("/onboarding")
-											}
+												setShowVibeModal(true)}
 											className="w-full text-xs text-slate-500 border border-dashed border-slate-700 rounded-lg py-2 hover:border-blue-500/50 hover:text-blue-400 transition-colors"
 										>
 											+ Thêm sở thích để AI gợi ý chính
@@ -692,11 +691,10 @@ export default function Sidebar({
 										disabled={
 											isGenerating || stops.length < 1
 										}
-										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${
-											isGenerating
-												? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
-												: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
-										}`}
+										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${isGenerating
+											? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
+											: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
+											}`}
 										onClick={showAIQuestions ? handleFinishAIQuestions : runSmartItinerary}
 									>
 										{isGenerating ? (
@@ -734,7 +732,7 @@ export default function Sidebar({
 												<img
 													src={resolveImageUrl(
 														heroImageOverride ||
-															displayDetail.image,
+														displayDetail.image,
 													)}
 													alt={displayDetail.name}
 													className="object-cover w-full h-full transition-all duration-700 group-hover:scale-110"
@@ -758,7 +756,7 @@ export default function Sidebar({
 										{/* Thông tin thêm: Sub Images */}
 										{displayDetail.image_list &&
 											displayDetail.image_list.length >
-												1 && (
+											1 && (
 												<div className="space-y-2">
 													<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
 														Thông tin thêm
@@ -904,15 +902,15 @@ export default function Sidebar({
 																		}
 																		disabled={
 																			shareState.routeId ===
-																				r.id &&
+																			r.id &&
 																			shareState.status ===
-																				"loading"
+																			"loading"
 																		}
 																		className="border-slate-700 bg-slate-800/90 text-slate-100 hover:bg-slate-700"
 																	>
 																		{shareState.routeId ===
 																			r.id &&
-																		shareState.status ===
+																			shareState.status ===
 																			"success" ? (
 																			<Check
 																				size={
@@ -955,11 +953,11 @@ export default function Sidebar({
 																		>
 																			{idx >
 																				0 && (
-																				<span className="text-slate-600">
-																					{" "}
-																					→{" "}
-																				</span>
-																			)}
+																					<span className="text-slate-600">
+																						{" "}
+																						→{" "}
+																					</span>
+																				)}
 																			<button
 																				type="button"
 																				className="text-blue-300 hover:text-blue-200 hover:underline font-medium"
@@ -1146,6 +1144,15 @@ export default function Sidebar({
 					/>
 				</div>
 			)}
+			{/* Vibe Modal */}
+			<OnboardingModal
+				isOpen={showVibeModal}
+				onClose={() => {
+					setShowVibeModal(false);
+					// Reload lại vibes sau khi đóng modal
+					getUserVibes().then(data => setUserVibes(data.vibes || []));
+				}}
+			/>
 		</>
 	);
 }
