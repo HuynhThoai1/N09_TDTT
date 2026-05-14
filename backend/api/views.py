@@ -7,6 +7,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 
+from users.authentication import FirebaseAuthentication
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import authentication_classes, permission_classes
+
 from .models import PointOfInterest, SharedRoute, VibeTag, UserProfile
 from .serializers import (
     POISerializer, VibeTagSerializer, UserProfileSerializer, 
@@ -17,13 +21,32 @@ from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
 from .goong_service import goong_autocomplete, goong_place_detail, goong_geocode, goong_reverse_geocode
 
-# --- HELPER FUNCTIONS ---
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from .models import UserProfile
+from .serializers import UserProfileSerializer
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
+
+@api_view(['GET', 'POST'])
+@authentication_classes([FirebaseAuthentication]) 
+@permission_classes([IsAuthenticated])
+def userProfile(request):
+    # Lấy profile hoặc tạo mới nếu chưa có
+    profile, created = UserProfile.objects.get_or_create(user=request.user)
+    
+    if request.method == 'GET':
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+        
+    elif request.method == 'POST':
+        serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=400)
 
 def _build_prompt_with_vibes(user, prompt_text):
-    """
-    Bí mật lấy sở thích của người dùng từ DB và nối vào prompt.
-    Ví dụ: "Tôi muốn đi dạo Quận 1. Ưu tiên: di tích lịch sử, bảo tàng, yên tĩnh"
-    """
     try:
         vibe_context = user.profile.get_prompt_context()
         if vibe_context:
@@ -40,15 +63,9 @@ def _fix_image_path(request, p):
     clean_p = str(p).replace("assets/images", "media").replace("http://localhost:8000/", "").lstrip('/')
     return f"{base_url}/{clean_p}"
 
-# --- VIBE API VIEWS ---
 
 @api_view(['GET'])
 def getVibeTags(request):
-    """
-    API lấy toàn bộ thẻ sở thích, nhóm theo category.
-    Dùng cho màn hình Onboarding sau khi đăng ký.
-    GET /api/vibes/
-    """
     tags = VibeTag.objects.all()
 
     grouped = {}
@@ -67,13 +84,10 @@ def getVibeTags(request):
     return Response(list(grouped.values()))
 
 
-@api_view(['GET', 'POST'])
+@api_view(['POST', 'GET'])
+@authentication_classes([FirebaseAuthentication]) 
+@permission_classes([IsAuthenticated])       
 def userVibes(request):
-    """
-    GET  — Xem thẻ vibe hiện tại (dùng cho Sidebar / Profile).
-    POST — Lưu lựa chọn mới (dùng cho màn hình Onboarding).
-    /api/profile/vibes/
-    """
     if request.method == 'GET':
             if not request.user.is_authenticated:
                 return Response({"vibes": []})
@@ -90,14 +104,8 @@ def userVibes(request):
             return Response({"message": "Đã lưu sở thích thành công!"})
         return Response(serializer.errors, status=400)
 
-# --- API VIEWS ---
-
 @api_view(['GET'])
 def searchLocations(request):
-    """
-    API tìm kiếm địa điểm từ danh sách POIs dựa trên query 'name'.
-    Hỗ trợ debounce từ Frontend.
-    """
     query = request.GET.get('name', '').strip()
     if not query: return Response([])
 
@@ -122,9 +130,6 @@ def searchLocations(request):
 
 @api_view(['POST'])
 def smartItinerary(request):
-    """
-    API chính của hệ thống AI Smart Itinerary sử dụng Giải thuật Di truyền.
-    """
     data = request.data
     raw_stops = data.get("stops", [])
     prompt_text = data.get("prompt_text", "").strip()
@@ -141,14 +146,14 @@ def smartItinerary(request):
         except Exception:
             pass
 
-    # --- Bước 0: Làm giàu dữ liệu Stops từ Database ---
+    # Làm giàu dữ liệu Stops từ Database 
     enriched_stops = []
     for s in raw_stops:
         sid = s.get("poi_id") or s.get("id")
         lat = s.get("latitude")
         lng = s.get("longitude")
         
-        # Thử tìm trong DB nội bộ trước
+        # tìm trong DB nội bộ 
         loc = None
         try:
             loc = PointOfInterest.objects.filter(poi_id=sid).first() or PointOfInterest.objects.filter(id=sid).first()
@@ -187,7 +192,7 @@ def smartItinerary(request):
     
     print(f"[SmartItinerary] Enriched {len(enriched_stops)} stops: {[s.get('name') for s in enriched_stops]}")
 
-    # --- Bước 1: Tìm kiếm ngữ nghĩa (Semantic Search) ---
+    # Tìm kiếm ngữ nghĩa 
     bonus_candidates = []
     if prompt_text:
         bonus_candidates = find_related_pois(
@@ -196,7 +201,7 @@ def smartItinerary(request):
             top_k=15,
         )
 
-    # --- Bước 2: Tối ưu hóa lộ trình (AI Genetic Algorithm) ---
+    # Tối ưu hóa lộ trình (AI Genetic Algorithm)
     routes = build_top3_routes(
         mandatory_stops=enriched_stops,
         bonus_candidates=bonus_candidates,
@@ -204,7 +209,7 @@ def smartItinerary(request):
         user_vibes=user_vibes
     )
 
-    # --- Bước 3: Fix path ảnh ---
+    # Fix path ảnh 
     for route in routes:
         for wp in route.get("waypoints", []):
             wp["image"] = _fix_image_path(request, wp.get("image"))
@@ -220,7 +225,6 @@ def smartItinerary(request):
 
 @api_view(['POST'])
 def createSharedRoute(request):
-    """Tạo route chia sẻ public và trả về share_id + share_url."""
     data = request.data or {}
     route = data.get('route') or data.get('selectedRoute')
 
@@ -250,7 +254,6 @@ def createSharedRoute(request):
 
 @api_view(['GET'])
 def getSharedRoute(request, share_id):
-    """Lấy dữ liệu route chia sẻ ở chế độ chỉ đọc."""
     shared_route = get_object_or_404(SharedRoute, share_id=share_id)
 
     shared_route.view_count += 1
@@ -265,16 +268,8 @@ def getSharedRoute(request, share_id):
         "view_count": shared_route.view_count,
     })
 
-
-# --- GOONG MAP API PROXY ---
-
 @api_view(['GET'])
 def goongAutocomplete(request):
-    """
-    API 1: Gợi ý địa điểm khi người dùng gõ tìm kiếm.
-    Sử dụng Goong Place AutoComplete thay thế cho tìm kiếm offline.
-    Query params: ?input=<text>&location=<lat,lng>&limit=<number>
-    """
     input_text = request.GET.get('input', '').strip()
     if not input_text:
         return Response({"error": "Thiếu tham số 'input'."}, status=400)
@@ -287,11 +282,6 @@ def goongAutocomplete(request):
 
 @api_view(['GET'])
 def goongPlaceDetail(request):
-    """
-    API 2: Lấy thông tin chi tiết của một địa điểm bằng place_id.
-    Sử dụng Goong Place Detail.
-    Query params: ?place_id=<id>
-    """
     place_id = request.GET.get('place_id', '').strip()
     if not place_id:
         return Response({"error": "Thiếu tham số 'place_id'."}, status=400)
@@ -302,11 +292,6 @@ def goongPlaceDetail(request):
 
 @api_view(['GET'])
 def goongGeocode(request):
-    """
-    API 3: Chuyển đổi địa chỉ ↔ tọa độ (Forward & Reverse Geocoding).
-    Sử dụng Goong Geocode.
-    Query params: ?address=<text> HOẶC ?latlng=<lat,lng>
-    """
     address = request.GET.get('address', '').strip()
     latlng = request.GET.get('latlng', '').strip()
 
@@ -323,4 +308,3 @@ def goongGeocode(request):
 
     return Response(data)
 
-# --- Vibe Tags ---
