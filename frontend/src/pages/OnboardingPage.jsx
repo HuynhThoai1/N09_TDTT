@@ -32,7 +32,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
             setError("");
             return [...prev, id];
         });
-    }
+    };
 
     async function handleSubmit() {
         setSaving(true);
@@ -44,7 +44,7 @@ export default function OnboardingModal({ isOpen, onClose }) {
         } finally {
             setSaving(false);
         }
-    }
+    };
 
     // Không render gì nếu modal đóng
     if (!isOpen) return null;
