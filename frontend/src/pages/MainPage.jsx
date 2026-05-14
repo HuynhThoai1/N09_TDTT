@@ -1,10 +1,10 @@
 import { useState } from "react";
 import Sidebar from "@/components/Sidebar";
 import MapView from "@/components/Map/MapView";
+import UserAuthMenu from "@/components/UserAuthMenu";
 
 const getApiBase = () => {
-	if (typeof window === "undefined") return "http://localhost:8000";
-	return `${window.location.protocol}//${window.location.hostname}:8000`;
+    return "http://192.168.46.87:8000"; 
 };
 
 export default function MainPage() {
@@ -159,6 +159,7 @@ export default function MainPage() {
 
 	return (
 		<div className="relative h-screen w-full overflow-hidden bg-slate-100">
+            <UserAuthMenu />
 			<Sidebar
 				onFocusLocation={setFocusedLocation}
 				onStopsChange={setStops}

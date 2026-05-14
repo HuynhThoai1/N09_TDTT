@@ -1,0 +1,17 @@
+# Firebase Secret Key (Cực kỳ quan trọng)
+serviceAccountKey.json
+
+# Môi trường ảo Python
+venv/
+.venv/
+env/
+
+# Files cấu hình cá nhân
+.env
+
+# Các file rác của Django và Python
+__pycache__/
+*.py[cod]
+*$py.class
+db.sqlite3
+media/

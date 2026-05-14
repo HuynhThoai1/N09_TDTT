@@ -57,9 +57,9 @@ class VibeTag(models.Model):
     ]
 
     category        = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
-    label           = models.CharField(max_length=100)   # Hiển thị cho người dùng
-    prompt_keyword  = models.TextField()                 # Bí mật nối vào AI prompt
-    icon            = models.CharField(max_length=10, blank=True)  # Emoji icon
+    label           = models.CharField(max_length=100)   
+    prompt_keyword  = models.TextField()                 
+    icon            = models.CharField(max_length=10, blank=True) 
 
     class Meta:
         ordering = ['category', 'label']
@@ -69,10 +69,13 @@ class VibeTag(models.Model):
         return f"[{self.get_category_display()}] {self.label}"
 
 
-# ── 2. Profile người dùng ─────────────────────────────────────────────
+# 2. Profile người dùng ─
 class UserProfile(models.Model):
     user  = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='profile')
+    phone = models.CharField(max_length=20, null=True, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
     vibes = models.ManyToManyField(VibeTag, blank=True)
+
 
     class Meta:
         verbose_name = 'Hồ sơ người dùng'

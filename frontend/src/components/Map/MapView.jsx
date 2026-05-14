@@ -9,6 +9,8 @@ const HCMC_CENTER = [106.7009, 10.7769]; // [lng, lat] cho Goong/Mapbox
 
 goongjs.accessToken = GOONG_MAPTILES_KEY;
 
+// const goongApiKey = import.meta.env.VITE_GOONG_API_KEY;
+
 // Tạo HTML cho numbered marker
 const createMarkerElement = (index, isLast = false) => {
 	// outer container: map positions this element by setting its transform.

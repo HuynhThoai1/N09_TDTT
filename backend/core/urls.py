@@ -33,7 +33,8 @@ urlpatterns = [
     
     path('api/vibes/',          views.getVibeTags, name='api_get_vibe_tags'),
     path('api/profile/vibes/',  views.userVibes,   name='api_user_vibes'),
-    path('api/reindex/',        views.reindex_vectors, name='api_reindex_vectors')
+
+    path('api/profile/', views.userProfile, name='api_user_profile')
 ]
 
 if settings.DEBUG:
