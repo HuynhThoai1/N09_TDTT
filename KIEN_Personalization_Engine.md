@@ -1,7 +1,7 @@
 # 📄 Báo cáo Tiến độ — Tính năng Vibe Personalization
 
 **Thực hiện bởi:** Đỗ Trung Kiên
-**Ngày báo cáo:** 04/05/2026
+**Ngày báo cáo:** 14/05/2026
 
 Dự án đã hoàn thành giai đoạn bổ sung tính năng mới: **Hệ thống Vibe Personalization** — cho phép người dùng thiết lập sở thích cá nhân để AI tự động điều chỉnh gợi ý lộ trình phù hợp hơn.
 
@@ -25,9 +25,11 @@ Thay vì AI chỉ dựa vào câu nhập của người dùng, hệ thống nay 
 - **`VibeTag`:** Lưu danh sách thẻ sở thích, chia thành 5 nhóm: Không gian, Ẩm thực, Văn hóa & Lịch sử, Hoạt động, Thời điểm. Mỗi thẻ có trường `prompt_keyword` bí mật dùng để nối vào AI prompt.
 - **`UserProfile`:** Lưu hồ sơ người dùng, quan hệ nhiều-nhiều với `VibeTag` thông qua Django `ManyToManyField`.
 
+> **Lưu ý kỹ thuật:** File `models.py` ban đầu import `User` nhầm từ `huggingface_hub`. Đã sửa sang dùng `settings.AUTH_USER_MODEL` để tránh xung đột với thư viện CLIP.
+
 ### 2.2 API — Thêm 2 endpoint mới (`views.py` + `urls.py`)
-- **`GET /api/vibes/`:** Trả về toàn bộ thẻ sở thích, đã nhóm theo category, dùng cho màn hình Onboarding.
-- **`GET/POST /api/profile/vibes/`:** Xem và lưu lựa chọn thẻ của người dùng.
+- **`GET /api/vibes/`:** Trả về toàn bộ thẻ sở thích, đã nhóm theo category, dùng cho modal Onboarding.
+- **`GET/POST /api/profile/vibes/`:** Xem và lưu lựa chọn thẻ của người dùng. Có kiểm tra `is_authenticated` để tránh lỗi khi chưa đăng nhập.
 
 ### 2.3 Tích hợp AI Prompt (`views.py`)
 Hàm `_build_prompt_with_vibes()` được thêm vào, tự động lấy sở thích từ database và nối bí mật vào `prompt_text` trước khi gọi CLIP Semantic Search:
@@ -48,37 +50,57 @@ def _build_prompt_with_vibes(user, prompt_text):
 
 ## 3. Các thay đổi Frontend (React + Vite)
 
-### 3.1 Màn hình Onboarding (`OnboardingPage.jsx`) — File mới
-Màn hình hiển thị ngay sau khi đăng ký, cho phép người dùng chọn tối đa **5 thẻ sở thích**:
-- Thẻ được nhóm theo category, hiển thị dạng pill button.
-- Thẻ đã chọn được highlight màu xanh.
-- Có nút "Bỏ qua, làm sau" để người dùng không bắt buộc phải chọn.
+### 3.1 Modal Chọn Sở Thích (`OnboardingPage.jsx`) — Cập nhật
+Ban đầu được thiết kế là trang độc lập tại route `/onboarding`. Sau đó **chuyển sang dạng Modal** hiển thị đè lên trang chính để trải nghiệm mượt mà hơn:
+- Background tối mờ (`backdrop-blur`) khi modal mở, trang chính vẫn hiển thị phía sau.
+- Click ra ngoài modal để đóng.
+- Tự động load lại thẻ đã chọn trước đó từ `localStorage` khi mở lại.
+- Thẻ được nhóm theo category, hiển thị dạng pill button, chọn tối đa **5 thẻ**.
+- Thẻ đã chọn highlight màu xanh với hiệu ứng glow.
+- Có nút "Bỏ qua" và "Lưu sở thích".
 
-### 3.2 Sidebar — Hiển thị sở thích (`Sidebar.jsx`)
+### 3.2 Sidebar — Tích hợp Modal (`Sidebar.jsx`)
 - Thêm mục **"Sở thích của bạn"** ở tab Lên kế hoạch.
 - Hiển thị các thẻ đã chọn dạng pill màu xanh.
-- Có nút "✏️ Chỉnh sửa" để quay lại màn hình Onboarding.
-- Khi gợi ý lộ trình, `prompt_text` tự động được nối thêm vibe context trước khi gửi lên backend.
+- Nút "✏️ Chỉnh sửa" mở Modal trực tiếp thay vì chuyển trang.
+- Sau khi đóng Modal, Sidebar tự động cập nhật lại danh sách thẻ hiển thị.
+- Khi gợi ý lộ trình, `prompt_text` tự động được nối thêm vibe context trước khi gửi lên backend:
+
+```js
+const vibeContext = userVibes.length > 0
+    ? ". Ưu tiên: " + userVibes.map(v => v.label).join(", ")
+    : "";
+
+const payload = {
+    stops: [...],
+    prompt_text: goalText.trim() + vibeContext,
+};
+```
 
 ### 3.3 API Layer (`vibeApi.js`) — File mới
-Tách riêng các hàm gọi API liên quan đến vibe:
+Do frontend (`localhost:5173`) và backend (`localhost:8000`) chạy khác domain, session cookie bị chặn bởi CORS. Giải pháp là lưu vibe bằng `localStorage` của trình duyệt thay vì session phía server:
+
 - `getVibeTags()` — Lấy danh sách thẻ từ backend.
-- `saveUserVibes(vibeIds)` — Lưu lựa chọn vào `localStorage`.
+- `saveUserVibes(vibeIds)` — Lưu id và thông tin đầy đủ vào `localStorage`.
 - `getUserVibes()` — Đọc lại từ `localStorage` để hiển thị trong Sidebar.
 
 ### 3.4 Router (`App.jsx`)
-Thêm route `/onboarding` trỏ đến `OnboardingPage`.
+Giữ nguyên route `/onboarding` để tương thích, nhưng luồng chính hiện dùng Modal thay vì điều hướng trang.
 
 ---
 
 ## 4. Luồng dữ liệu hoàn chỉnh
 
 ```
-Người dùng vào /onboarding
+Bấm "✏️ Chỉnh sửa" trong Sidebar
         ↓
-Chọn tối đa 5 thẻ sở thích → Lưu vào localStorage
+Modal hiện ra, background tối mờ
         ↓
-Vào trang chính → Sidebar đọc localStorage → Hiển thị thẻ đã chọn
+Chọn tối đa 5 thẻ sở thích → Bấm "Lưu sở thích"
+        ↓
+saveUserVibes() → Lưu vào localStorage
+        ↓
+Modal đóng → Sidebar tự cập nhật hiển thị thẻ mới
         ↓
 Người dùng nhập yêu cầu + bấm "Gợi ý lộ trình"
         ↓
@@ -93,9 +115,10 @@ Genetic Algorithm → Trả về 3 lộ trình phù hợp hơn
 
 ## 5. Các vấn đề kỹ thuật đã xử lý
 
-- **Lỗi import nhầm `User`:** File `models.py` ban đầu import `User` từ `huggingface_hub` thay vì Django. Đã sửa sang dùng `settings.AUTH_USER_MODEL`.
-- **Lỗi CORS `credentials`:** Do frontend và backend chạy khác domain (`5173` vs `8000`), session cookie bị chặn. Đã chuyển sang lưu vibe bằng `localStorage` ở frontend để tránh phụ thuộc session.
-- **Lỗi `AnonymousUser`:** Khi chưa đăng nhập, backend cố lưu `AnonymousUser` vào DB gây lỗi 500. Đã thêm kiểm tra `is_authenticated` trước khi thao tác DB.
+- **Lỗi import nhầm `User`:** File `models.py` ban đầu có sẵn dòng `from huggingface_hub import User` gây xung đột. Đã sửa sang `settings.AUTH_USER_MODEL`.
+- **Lỗi CORS `credentials`:** Do khác domain, session cookie bị chặn. Đã chuyển sang `localStorage` ở frontend để tránh phụ thuộc session.
+- **Lỗi `AnonymousUser` (HTTP 500):** Khi chưa đăng nhập, backend cố lưu `AnonymousUser` vào DB gây lỗi. Đã thêm kiểm tra `is_authenticated` trước khi thao tác DB.
+- **Modal không load thẻ cũ:** Khi mở lại Modal, thẻ đã chọn trước đó bị reset. Đã xử lý bằng cách đọc `localStorage` trong `useEffect` khi `isOpen` thay đổi.
 
 ---
 

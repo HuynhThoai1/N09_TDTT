@@ -1,3 +1,4 @@
+import OnboardingModal from "../pages/OnboardingPage";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { onAuthStateChanged } from "firebase/auth";
@@ -49,6 +50,7 @@ export default function Sidebar({
     onResetShortestPath,
     onReviewSelectedRoute,
 }) {
+	const [showVibeModal, setShowVibeModal] = useState(false);
 	const [isOpen, setIsOpen] = useState(true);
 	const [heroImageOverride, setHeroImageOverride] = useState(null);
 	const [activeTab, setActiveTab] = useState("plan");
@@ -93,7 +95,7 @@ export default function Sidebar({
 	useEffect(() => {
 		getUserVibes()
 			.then((data) => setUserVibes(data.vibes || []))
-			.catch(() => {}); // Chưa đăng nhập thì bỏ qua
+			.catch(() => { }); // Chưa đăng nhập thì bỏ qua
 	}, []);
 
 	useEffect(() => {
@@ -411,9 +413,675 @@ export default function Sidebar({
 				onClick={() => setIsOpen(!isOpen)}
 				className={`fixed top-1/2 -translate-y-1/2 z-[1002] w-6 h-14 bg-slate-900/80 backdrop-blur-md border border-slate-700 shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center justify-center rounded-r-xl transition-all duration-300 hover:bg-slate-800 text-slate-300
                 ${isOpen ? "left-[28rem]" : "left-0"}`}
-            >
-                {isOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-            </button>
+			>
+				{isOpen ? (
+					<ChevronLeft size={20} />
+				) : (
+					<ChevronRight size={20} />
+				)}
+			</button>
+
+			<aside
+				className={`fixed top-0 left-0 h-full bg-slate-950/80 backdrop-blur-xl shadow-[5px_0_20px_rgba(0,0,0,0.5)] z-[1001] transition-all duration-300 ease-in-out border-r border-slate-800 overflow-hidden
+                ${isOpen ? "w-[28rem] translate-x-0" : "w-0 -translate-x-full"}`}
+			>
+				<div className="w-[28rem] h-full flex flex-col text-slate-100 overflow-hidden">
+					<div className="flex px-4 pt-6 pb-2 border-b border-slate-800 shrink-0">
+						<button
+							type="button"
+							className={`flex-1 pb-2 text-sm font-semibold transition-all ${activeTab === "plan" ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-500 hover:text-slate-300"}`}
+							onClick={() => setActiveTab("plan")}
+						>
+							Lên kế hoạch
+						</button>
+						<button
+							type="button"
+							className={`flex-1 pb-2 text-sm font-semibold transition-all ${activeTab === "detail" ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-500 hover:text-slate-300"}`}
+							onClick={() => setActiveTab("detail")}
+						>
+							Chi tiết
+						</button>
+						<button
+							type="button"
+							className={`flex-1 pb-2 text-sm font-semibold transition-all ${activeTab === "results" ? "text-blue-400 border-b-2 border-blue-400" : "text-slate-500 hover:text-slate-300"}`}
+							onClick={() => setActiveTab("results")}
+						>
+							Kết quả
+						</button>
+					</div>
+
+					<div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+						<div
+							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "plan" ? "" : "hidden"}`}
+						>
+							<div className="flex-1 overflow-y-auto p-5 space-y-5 flex flex-col custom-scrollbar">
+								<div className="space-y-3 relative shrink-0">
+									<Label className="text-slate-400 text-xs uppercase tracking-wider">
+										Vị trí bắt đầu
+									</Label>
+									<div className="relative">
+										<Search
+											className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+											size={16}
+										/>
+										<Input
+											placeholder="VD: Nhà thờ Đức Bà..."
+											value={searchTerm}
+											onChange={handleSearchChange}
+											className="pl-10 bg-slate-900 border-slate-700 text-white placeholder:text-slate-600 focus-visible:ring-blue-500"
+										/>
+										{searchTerm && (
+											<button
+												type="button"
+												onClick={() => {
+													setSearchTerm("");
+													setSelectedLocation(null);
+												}}
+												className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+											>
+												<X size={16} />
+											</button>
+										)}
+									</div>
+
+									{suggestions.length > 0 && (
+										<div className="absolute top-[4.25rem] left-0 w-full bg-slate-900 border border-slate-700 rounded-lg shadow-xl z-20 max-h-80 overflow-y-auto">
+											{suggestions.map((loc) => (
+												<button
+													type="button"
+													key={loc.id}
+													className="p-3 hover:bg-slate-800 cursor-pointer flex flex-col border-b border-slate-800 last:border-0 w-full text-left"
+													onClick={() =>
+														handleSelectLocation(
+															loc,
+														)
+													}
+												>
+													<span className="font-medium text-blue-100">
+														{loc.name}
+													</span>
+													<span className="text-xs text-slate-500 truncate">
+														{loc.address}
+													</span>
+												</button>
+											))}
+										</div>
+									)}
+
+									{selectedLocation && (
+										<div className="flex gap-2 pt-2">
+											<Button
+												type="button"
+												onClick={handleAddStop}
+												className="flex-1 bg-blue-600 hover:bg-blue-700 text-white shadow-[0_0_10px_rgba(37,99,235,0.4)]"
+											>
+												<MapPin
+													size={16}
+													className="mr-2"
+												/>
+												Chọn
+											</Button>
+											<Button
+												type="button"
+												variant="outline"
+												onClick={() =>
+													openDetail(selectedLocation)
+												}
+												className="flex-1 border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+											>
+												<Info
+													size={16}
+													className="mr-2"
+												/>
+												Chi tiết
+											</Button>
+										</div>
+									)}
+								</div>
+
+								{stops.map((s, i) => {
+									const isLast = i === stops.length - 1;
+									const isDuplicate =
+										duplicateId === (s.id || s.poi_id);
+
+									return (
+										<div
+											key={`${s.id}-${i}`}
+											className={`flex flex-col text-sm text-slate-300 bg-slate-800/40 p-3 rounded-xl transition-all group border border-transparent shrink-0 ${isDuplicate
+												? "animate-shake ring-2 ring-yellow-500/50 bg-yellow-500/10"
+												: "hover:bg-slate-800/60 hover:border-slate-700/50 shadow-sm shadow-black/20"
+												}`}
+										>
+											<div className="flex items-start gap-3 min-w-0">
+												<div className="flex flex-col items-center shrink-0 pt-1.5">
+													<div
+														className={`w-2.5 h-2.5 rounded-full ${i === 0 ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]" : "bg-slate-600"} ring-2 ring-slate-900`}
+													/>
+													{!isLast && (
+														<div className="w-0.5 h-8 bg-slate-800/80 mt-1.5" />
+													)}
+												</div>
+
+												<div className="flex-1 min-w-0">
+													<p className="text-slate-200 text-sm leading-relaxed font-normal line-clamp-2">
+														{s.address || s.name}
+													</p>
+												</div>
+											</div>
+
+											{/* Hàng dưới: Các nút thao tác */}
+											<div className="flex items-center justify-end gap-1 mt-3 pt-2 border-t border-slate-700/30 shrink-0">
+												<button
+													type="button"
+													onClick={() =>
+														onFocusLocation({
+															...s,
+															_t: Date.now(),
+														})
+													}
+													className="flex items-center gap-1 px-2 py-1 hover:bg-slate-700 rounded text-[11px] text-slate-400 hover:text-blue-400 transition-colors"
+													title="Xem trên bản đồ"
+												>
+													<LocateFixed size={13} />
+													<span>Vị trí</span>
+												</button>
+												<button
+													type="button"
+													onClick={() =>
+														openDetail(s)
+													}
+													className="flex items-center gap-1 px-2 py-1 hover:bg-slate-700 rounded text-[11px] text-slate-400 hover:text-blue-400 transition-colors"
+													title="Xem chi tiết"
+												>
+													<Info size={13} />
+													<span>Chi tiết</span>
+												</button>
+												<div className="w-px h-3 bg-slate-700 mx-0.5"></div>
+												<button
+													type="button"
+													onClick={() =>
+														removeStop(i)
+													}
+													className="flex items-center gap-1 px-2 py-1 hover:bg-red-900/30 rounded text-[11px] text-slate-400 hover:text-red-400 transition-colors"
+													title="Xóa điểm"
+												>
+													<Trash2 size={13} />
+													<span>Xóa</span>
+												</button>
+											</div>
+										</div>
+									);
+								})}
+
+								<hr className="border-slate-800 shrink-0" />
+
+								<div className="space-y-2 shrink-0">
+									<Label
+										htmlFor="goal-text"
+										className="text-slate-400 text-xs uppercase tracking-wider"
+									>
+										Kế hoạch bạn muốn thực hiện
+									</Label>
+
+									<textarea
+										id="goal-text"
+										name="goalText"
+										value={goalText ?? ""}
+										rows={3}
+										maxLength={300}
+										onChange={(e) =>
+											setGoalText(e.target.value)
+										}
+										placeholder="VD: Muốn lộ trình tham quan quận 1 trong 1 buổi chiều..."
+										className="w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm leading-5 text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y min-h-[84px]"
+									/>
+									<p className="text-[11px] text-slate-500 text-right">
+										{(goalText ?? "").length}/300
+									</p>
+								</div>
+								<hr className="border-slate-800 shrink-0" />
+
+								<div className="space-y-2 shrink-0">
+									<div className="flex items-center justify-between">
+										<Label className="text-slate-400 text-xs uppercase tracking-wider">
+											Sở thích của bạn
+										</Label>
+										<button
+											type="button"
+											onClick={() =>
+												setShowVibeModal(true)}
+											className="text-xs text-blue-400 hover:text-blue-300 hover:underline transition-colors"
+										>
+											✏️ Chỉnh sửa
+										</button>
+									</div>
+
+									{userVibes.length > 0 ? (
+										<div className="flex flex-wrap gap-1.5">
+											{userVibes.map((vibe) => (
+												<span
+													key={vibe.id}
+													className="text-xs bg-blue-500/10 text-blue-300 border border-blue-500/20 px-2.5 py-1 rounded-full"
+												>
+													{vibe.icon} {vibe.label}
+												</span>
+											))}
+										</div>
+									) : (
+										<button
+											type="button"
+											onClick={() =>
+												setShowVibeModal(true)}
+											className="w-full text-xs text-slate-500 border border-dashed border-slate-700 rounded-lg py-2 hover:border-blue-500/50 hover:text-blue-400 transition-colors"
+										>
+											+ Thêm sở thích để AI gợi ý chính
+											xác hơn
+										</button>
+									)}
+								</div>
+
+								{/* AI Clarification Section */}
+								{showAIQuestions && (
+									<>
+										<hr className="border-slate-800 shrink-0" />
+										<AIClarification
+											aiQuestions={aiQuestions}
+											currentQuestionIndex={currentQuestionIndex}
+											setCurrentQuestionIndex={setCurrentQuestionIndex}
+											aiAnswers={aiAnswers}
+											setAIAnswers={setAIAnswers}
+											otherAnswer={otherAnswer}
+											setOtherAnswer={setOtherAnswer}
+										/>
+									</>
+								)}
+
+								<div className="mt-auto pt-2 pb-1 shrink-0">
+									<Button
+										type="button"
+										disabled={
+											isGenerating || stops.length < 1
+										}
+										className={`w-full text-md py-6 transition-all duration-500 overflow-hidden relative group ${isGenerating
+											? "bg-slate-800 text-slate-400 cursor-not-allowed border border-slate-700"
+											: "bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] hover:shadow-[0_0_30px_rgba(37,99,235,0.6)]"
+											}`}
+										onClick={showAIQuestions ? handleFinishAIQuestions : runSmartItinerary}
+									>
+										{isGenerating ? (
+											<div className="flex items-center gap-1.5">
+												<span className="dot-1 w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+												<span className="dot-2 w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+												<span className="dot-3 w-1.5 h-1.5 bg-blue-400 rounded-full"></span>
+											</div>
+										) : (
+											<>
+												<Navigation className="mr-2 group-hover:rotate-12 transition-transform" />
+												{showAIQuestions ? "Gợi ý ngay" : "Gợi ý lộ trình"}
+											</>
+										)}
+									</Button>
+								</div>
+							</div>
+						</div>
+
+						<div
+							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "detail" ? "" : "hidden"}`}
+						>
+							<div className="p-6 flex-1 overflow-y-auto custom-scrollbar bg-slate-900/10 space-y-4">
+								{displayDetail ? (
+									<div className="space-y-4">
+										<div className="space-y-3">
+											<div
+												className="w-full h-48 bg-slate-800 rounded-2xl overflow-hidden relative shadow-2xl group border border-slate-700/50 cursor-zoom-in"
+												onClick={() =>
+													setPreviewImage(
+														displayDetail.image,
+													)
+												}
+											>
+												<img
+													src={resolveImageUrl(
+														heroImageOverride ||
+														displayDetail.image,
+													)}
+													alt={displayDetail.name}
+													className="object-cover w-full h-full transition-all duration-700 group-hover:scale-110"
+												/>
+												<div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent">
+													<h3 className="font-bold text-xl text-white drop-shadow-md">
+														{displayDetail.name}
+													</h3>
+												</div>
+											</div>
+										</div>
+										<div className="space-y-1">
+											<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
+												Địa chỉ
+											</Label>
+											<p className="text-sm text-slate-300 bg-slate-800/30 p-3 rounded-lg border border-slate-700/50">
+												{displayDetail.address || "???"}
+											</p>
+										</div>
+
+										{/* Thông tin thêm: Sub Images */}
+										{displayDetail.image_list &&
+											displayDetail.image_list.length >
+											1 && (
+												<div className="space-y-2">
+													<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
+														Thông tin thêm
+													</Label>
+													<div className="grid grid-cols-4 gap-2">
+														{displayDetail.image_list
+															.slice(1)
+															.map((img, idx) => (
+																<div
+																	key={idx}
+																	className="aspect-square rounded-lg overflow-hidden border border-slate-700 cursor-pointer hover:border-blue-500 transition-all active:scale-95 shadow-lg group"
+																	onClick={() =>
+																		setHeroImageOverride(
+																			img,
+																		)
+																	}
+																>
+																	<img
+																		src={resolveImageUrl(
+																			img,
+																		)}
+																		className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity"
+																		alt="thumbnail"
+																	/>
+																</div>
+															))}
+													</div>
+												</div>
+											)}
+
+										<div className="flex flex-wrap gap-2 pt-1">
+											<span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-[11px] font-medium rounded-full border border-amber-500/20">
+												Đánh giá 4.8★
+											</span>
+											<span className="px-2.5 py-1 bg-green-500/10 text-green-400 text-[11px] font-medium rounded-full border border-green-500/20">
+												Giờ mở cửa 8h–22h
+											</span>
+										</div>
+										<div className="space-y-1">
+											<Label className="text-[10px] uppercase text-slate-500 tracking-widest font-bold">
+												Mô tả
+											</Label>
+											<p className="text-sm text-slate-400 leading-relaxed bg-slate-800/20 p-3 rounded-lg border border-slate-800/50">
+												{displayDetail.description ||
+													"Địa điểm gợi ý trong đồ án — nội dung chi tiết có thể gắn API sau. Hiện dùng dữ liệu và hình ảnh minh họa."}
+											</p>
+										</div>
+										<Button
+											type="button"
+											className="w-full mt-4 bg-slate-800 hover:bg-blue-600 border border-slate-700 hover:border-blue-500 transition-colors"
+											onClick={() => {
+												if (!displayDetail) return;
+												onStopsChange([displayDetail]);
+												onFocusLocation?.(
+													displayDetail,
+												); // Tu dong bay den
+												setActiveTab("plan");
+											}}
+										>
+											Chọn bắt đầu từ đây
+										</Button>
+									</div>
+								) : (
+									<div className="flex flex-col items-center justify-center min-h-[280px] text-slate-500 space-y-4 opacity-50 px-10">
+										<Info
+											size={48}
+											className="opacity-20"
+										/>
+										<p className="text-center text-sm">
+											Chưa chọn địa điểm.
+											<br />
+											Tìm ở tab Lên kế hoạch hoặc bấm tên
+											địa danh trong Kết quả.
+										</p>
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div
+							className={`flex-1 flex flex-col overflow-hidden min-h-0 ${activeTab === "results" ? "" : "hidden"}`}
+						>
+							<div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-slate-900/10 space-y-4 min-h-0">
+								<p className="text-xs text-slate-500">
+									Dữ liệu minh họa. Payload thực tế khi có
+									API: danh sách điểm dừng + mục tiêu + ngữ
+									cảnh (xem console khi bấm gợi ý).
+								</p>
+
+								{routeSuggestions.length === 0 ? (
+									<div className="py-16 text-center text-slate-500 text-sm">
+										Chưa có gợi ý. Hãy bấm &quot;Gợi ý lộ
+										trình&quot; ở tab Lên kế hoạch.
+									</div>
+								) : (
+									<ul className="space-y-3">
+										{routeSuggestions.map((r) => {
+											const isOn =
+												selectedSuggestionId === r.id;
+											const isExpanded =
+												expandedRouteId === r.id;
+											return (
+												<li
+													key={r.id}
+													className={`rounded-xl border transition-colors ${isOn ? "border-blue-500/50 bg-slate-800/40" : "border-slate-800 bg-slate-900/30"}`}
+												>
+													<div className="flex gap-3 p-3 items-start">
+														<button
+															type="button"
+															onClick={() =>
+																selectRouteSuggestion(
+																	r,
+																)
+															}
+															className={`mt-0.5 h-5 w-5 shrink-0 rounded border-2 transition-colors ${isOn ? "border-blue-400 bg-blue-500" : "border-slate-500 bg-transparent hover:border-slate-300"}`}
+															aria-pressed={isOn}
+															aria-label={`Chọn lộ trình ${r.label}`}
+														/>
+
+														<div className="flex-1 min-w-0 space-y-2">
+															<div className="flex items-center justify-between gap-2">
+																<h3 className="text-sm font-semibold text-slate-100">
+																	{r.label}
+																</h3>
+																<div className="flex items-center gap-2 shrink-0">
+																	<span className="text-[10px] uppercase text-slate-500 shrink-0">
+																		{
+																			r.totalDuration
+																		}{" "}
+																		·{" "}
+																		{
+																			r.totalDistance
+																		}
+																	</span>
+																	<Button
+																		type="button"
+																		variant="outline"
+																		size="xs"
+																		onClick={() =>
+																			handleShareRoute(
+																				r,
+																			)
+																		}
+																		disabled={
+																			shareState.routeId ===
+																			r.id &&
+																			shareState.status ===
+																			"loading"
+																		}
+																		className="border-slate-700 bg-slate-800/90 text-slate-100 hover:bg-slate-700"
+																	>
+																		{shareState.routeId ===
+																			r.id &&
+																			shareState.status ===
+																			"success" ? (
+																			<Check
+																				size={
+																					12
+																				}
+																				className="mr-1"
+																			/>
+																		) : (
+																			<Share2
+																				size={
+																					12
+																				}
+																				className="mr-1"
+																			/>
+																		)}
+																		Chia sẻ
+																	</Button>
+																</div>
+															</div>
+															{shareState.routeId ===
+																r.id &&
+																shareState.message && (
+																	<p
+																		className={`text-[11px] ${shareState.status === "error" ? "text-red-400" : "text-emerald-400"}`}
+																	>
+																		{
+																			shareState.message
+																		}
+																	</p>
+																)}
+
+															<p className="text-xs text-slate-400 leading-relaxed">
+																{r.waypoints.map(
+																	(
+																		w,
+																		idx,
+																	) => (
+																		<span
+																			key={`${r.id}-${w.id}-${idx}`}
+																		>
+																			{idx >
+																				0 && (
+																					<span className="text-slate-600">
+																						{" "}
+																						→{" "}
+																					</span>
+																				)}
+																			<button
+																				type="button"
+																				className="text-blue-300 hover:text-blue-200 hover:underline font-medium"
+																				onClick={() =>
+																					openDetail(
+																						w,
+																					)
+																				}
+																			>
+																				{
+																					w.name
+																				}
+																			</button>
+																		</span>
+																	),
+																)}
+															</p>
+
+															<button
+																type="button"
+																className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300"
+																onClick={() =>
+																	setExpandedRouteId(
+																		isExpanded
+																			? null
+																			: r.id,
+																	)
+																}
+															>
+																<ChevronDown
+																	className={`transition-transform ${isExpanded ? "rotate-180" : ""}`}
+																	size={14}
+																/>
+																{isExpanded
+																	? "Thu gọn chi tiết"
+																	: "Chi tiết lộ trình"}
+															</button>
+														</div>
+													</div>
+
+													{isExpanded && (
+														<div className="px-4 pb-4 pt-3 text-xs text-slate-400 space-y-3 border-t border-slate-800/80 bg-slate-900/30 rounded-b-xl">
+															<div className="space-y-1.5">
+																<div className="flex items-center gap-1.5 text-blue-400 font-semibold uppercase text-[10px] tracking-wider">
+																	<Sparkles
+																		size={
+																			12
+																		}
+																	/>
+																	Góc nhìn AI
+																</div>
+																<p className="text-slate-300 leading-relaxed italic border-l-2 border-blue-500/30 pl-3">
+																	&quot;
+																	{
+																		r.ai_reason
+																	}
+																	&quot;
+																</p>
+															</div>
+
+															<div className="pt-2 border-t border-slate-800/50">
+																<span className="text-slate-500 font-medium">
+																	Lý do
+																	chọn:{" "}
+																</span>
+																{r.description}
+															</div>
+
+															{r.duration_text && (
+																<div className="text-[10px] text-slate-500">
+																	Thời gian di
+																	chuyển ước
+																	tính:{" "}
+																	<span className="text-blue-400">
+																		{
+																			r.duration_text
+																		}
+																	</span>
+																</div>
+															)}
+														</div>
+													)}
+												</li>
+											);
+										})}
+									</ul>
+								)}
+
+								<div className="pt-2 pb-6 space-y-2 border-t border-slate-800/80">
+									{/* <Button
+										type="button"
+										className="w-full bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40"
+										disabled={!selectedSuggestionId}
+										onClick={handleReview}
+									>
+										Review lộ trình đã chọn
+									</Button> */}
+									{selectedRoute && selectedSuggestionId && (
+										<p className="text-[11px] text-slate-500 text-center">
+											Đang xem:{" "}
+											<span className="text-slate-300">
+												{selectedRoute.label}
+											</span>{" "}
+											— xem polyline trên bản đồ và panel
+											mũi tên bên phải.
+										</p>
+									)}
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</aside>
 
             <aside
                 className={`fixed top-0 left-0 h-full bg-slate-950/80 backdrop-blur-xl shadow-[5px_0_20px_rgba(0,0,0,0.5)] z-[1001] transition-all duration-300 ease-in-out border-r border-slate-800 overflow-hidden
@@ -917,14 +1585,36 @@ export default function Sidebar({
 					</div>
 				</div>
 			)}
-
-            {/* XEM ẢNH FULL SCREEN */}
-            {previewImage && (
-                <div className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 md:p-10" onClick={() => setPreviewImage(null)}>
-                    <Button variant="ghost" className="absolute top-4 right-4 text-white"><X size={28} /></Button>
-                    <img src={resolveImageUrl(previewImage)} className="max-w-full max-h-full object-contain rounded-lg shadow-2xl" alt="Preview" />
-                </div>
-            )}
-        </>
-    );
+			{/* Fullscreen Image Preview */}
+			{previewImage && (
+				<div
+					className="fixed inset-0 z-[9999] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-4 md:p-10 animate-in fade-in duration-300"
+					onClick={() => setPreviewImage(null)}
+				>
+					<Button
+						variant="ghost"
+						size="icon"
+						className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full"
+						onClick={() => setPreviewImage(null)}
+					>
+						<X size={28} />
+					</Button>
+					<img
+						src={resolveImageUrl(previewImage)}
+						className="max-w-full max-h-full object-contain rounded-lg shadow-[0_0_50px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-300"
+						alt="Preview"
+					/>
+				</div>
+			)}
+			{/* Vibe Modal */}
+			<OnboardingModal
+				isOpen={showVibeModal}
+				onClose={() => {
+					setShowVibeModal(false);
+					// Reload lại vibes sau khi đóng modal
+					getUserVibes().then(data => setUserVibes(data.vibes || []));
+				}}
+			/>
+		</>
+	);
 }
