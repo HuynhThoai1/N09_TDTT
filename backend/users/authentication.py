@@ -22,8 +22,8 @@ class FirebaseAuthentication(BaseAuthentication):
         id_token = auth_header.split(' ').pop()
 
         try:
-            # Nhờ Firebase kiểm tra token
-            decoded_token = auth.verify_id_token(id_token)
+            # Nhờ Firebase kiểm tra token, cho phép lệch múi giờ tối đa 60 giây (clock skew)
+            decoded_token = auth.verify_id_token(id_token, clock_skew_seconds=60)
             uid = decoded_token.get('uid')
             email = decoded_token.get('email')
         except Exception as e:

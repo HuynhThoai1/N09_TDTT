@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "../firebase"; 
-import ProfileModal from "./ProfileModal";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../firebase";
 import AIClarification from "./AIClarification.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Button } from "@/components/ui/button.jsx";
@@ -50,9 +49,7 @@ export default function Sidebar({
     onResetShortestPath,
     onReviewSelectedRoute,
 }) {
-    // --- STATE CỦA TÀI (PROFILE) ---
-    const [isProfileOpen, setIsProfileOpen] = useState(false);
-    const [user, setUser] = useState(null);
+    // --- STATE VIBES (SỞ THÍCH) ---
     const [userVibes, setUserVibes] = useState([]);
 
     // --- STATE CỦA ĐỒNG ĐỘI (GIAO DIỆN & AI) ---
@@ -93,7 +90,6 @@ export default function Sidebar({
     // --- LOGIC ĐĂNG NHẬP & VIBES (HỢP NHẤT) ---
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            setUser(currentUser);
             if (currentUser) {
                 try {
                     const token = await currentUser.getIdToken();
@@ -113,15 +109,6 @@ export default function Sidebar({
         });
         return () => unsubscribe();
     }, []);
-
-    const handleLogout = async () => {
-        try {
-            await signOut(auth);
-            navigate('/login');
-        } catch (error) {
-            console.error("Lỗi đăng xuất:", error);
-        }
-    };
 
     // --- LOGIC XỬ LÝ SEARCH & DETAIL (HỢP NHẤT) ---
     const handleSearchChange = (e) => {
@@ -746,28 +733,8 @@ export default function Sidebar({
                         </div>
                     </div>
 
-                    {/* FOOTER: NGƯỜI DÙNG & PROFILE */}
-                    <div className="mt-auto p-4 border-t border-slate-800 bg-slate-900/50 flex items-center justify-between gap-3">
-                        {/*Hiển thị Avatar & Họ Tên*/}
-                        <button onClick={() => setIsProfileOpen(true)} className="flex-1 flex items-center gap-3 p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 transition-all border border-slate-700 group">
-                            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-inner">
-                                {user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'U'}
-                            </div>
-                            <span className="text-sm font-medium text-white truncate max-w-[130px] group-hover:text-blue-400 transition-colors">
-                                {user?.displayName || user?.email || "Người dùng"}
-                            </span>
-                        </button>
-
-                        {/*Nút Đăng xuất*/}
-                        <button 
-                            onClick={handleLogout} 
-                            className="px-4 py-2.5 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-500 text-sm font-semibold transition-all border border-red-500/20">Đăng xuất</button>
-                    </div>
                 </div>
             </aside>
-
-            {/* MODAL*/}
-            <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />
 
 			{/* HIỆU ỨNG AI*/}
 			{isGenerating && (

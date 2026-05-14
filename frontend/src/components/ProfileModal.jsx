@@ -8,7 +8,7 @@ import { X, User, Phone, Calendar, Mail, Lock, Camera } from "lucide-react";
 
 
 
-export default function ProfileModal({ isOpen, onClose }) {
+export default function ProfileModal({ isOpen, onClose, onLogout }) {
     const user = auth.currentUser;
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState({ type: "", text: "" });
@@ -185,10 +185,21 @@ export default function ProfileModal({ isOpen, onClose }) {
                         </div>
                     </div>
 
-                    <div className="pt-2">
+                    <div className="pt-2 space-y-3">
                         <Button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-500 py-6 text-md font-semibold rounded-xl">
                             {loading ? "Đang lưu..." : "Lưu thay đổi"}
                         </Button>
+                        
+                        {onLogout && (
+                            <Button 
+                                type="button" 
+                                onClick={onLogout} 
+                                variant="outline"
+                                className="w-full border-red-500/50 text-red-500 hover:bg-red-500/10 hover:text-red-400 py-6 text-md font-semibold rounded-xl transition-all"
+                            >
+                                Đăng xuất
+                            </Button>
+                        )}
                     </div>
                 </form>
             </div>
