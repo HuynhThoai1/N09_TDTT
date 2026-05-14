@@ -13,7 +13,14 @@ class PointOfInterest(models.Model):
     image = models.CharField(max_length=500, blank=True, null=True)
     image_list = models.JSONField(default=list, blank=True)
     
+    # Đánh giá từ cộng đồng
+    rating = models.FloatField(default=0.0, null=True, blank=True)
+    user_ratings_total = models.IntegerField(default=0, null=True, blank=True)
+    
+    # Vector AI (CLIP) de tim kiem thong minh
+    # Luu dang JSON cho linh hoat, co the convert sang pgvector sau nay
     vector = models.JSONField(null=True, blank=True)
+    text_vector = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return self.name

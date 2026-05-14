@@ -42,8 +42,12 @@ def osrm_table(points: list) -> list[list[float]] | None:
     Giữ nguyên tên hàm để code Genetic Algorithm bên dưới không cần sửa.
     """
     if len(points) < 2: return None
-    coords = "|".join(f"{p['latitude']},{p['longitude']}" for p in points)
     
+    # Debug tọa độ gửi lên
+    coords_list = [f"{p['latitude']},{p['longitude']}" for p in points]
+    print(f"[Goong Debug] Requesting Matrix for {len(points)} points: {coords_list}")
+    
+    coords = "|".join(coords_list)
     data = goong_distance_matrix(origins=coords, destinations=coords)
     
     if data and data.get("rows"):
@@ -54,9 +58,14 @@ def osrm_table(points: list) -> list[list[float]] | None:
                 if element.get("status") == "OK":
                     row_times.append(float(element.get("duration", {}).get("value", 0)))
                 else:
-                    row_times.append(float("inf"))
+                    # Nếu một điểm không tìm thấy đường đi (NOT_FOUND), gán giá trị lớn
+                    row_times.append(999999.0) 
             matrix.append(row_times)
         return matrix
+    
+    if data and data.get("status") == "NOT_FOUND":
+        print("[Goong Warning] Một hoặc nhiều tọa độ không tìm thấy trên bản đồ Goong. Kiểm tra tọa độ trong database.")
+        
     return None
 
 def osrm_route(ordered_points: list) -> dict | None:
@@ -128,12 +137,28 @@ class GeneticOptimizer:
     def _calculate_fitness(self, chromosome):
         total_profit = 0
         total_time = 0
+        categories_seen = set()
+
         for i, idx in enumerate(chromosome):
-            total_profit += self.all_points[idx].get("similarity_score", 0.0)
+            point = self.all_points[idx]
+            total_profit += point.get("similarity_score", 0.0)
+            categories_seen.add(point.get("category", "other"))
+            
             if i > 0:
                 total_time += self.time_matrix[chromosome[i-1]][idx]
+
         time_penalty = total_time / 3600.0
-        return (total_profit * 10) - time_penalty 
+        
+        # Pacing Score: Thưởng nếu đi nhiều thể loại khác nhau (Cafe, Tham quan, Ăn uống)
+        diversity_bonus = len(categories_seen) * 0.5 
+        
+        # Cluster Penalty: Phạt nếu 2 điểm di chuyển quá ngắn (< 1 phút), tránh xếp 2 điểm sát vách nhau liên tiếp
+        cluster_penalty = 0
+        for i in range(len(chromosome) - 1):
+            if self.time_matrix[chromosome[i]][chromosome[i+1]] < 60:
+                cluster_penalty += 1.0
+
+        return (total_profit * 10) - time_penalty + diversity_bonus - cluster_penalty
 
     def solve(self, generations=40, pop_size=50):
         if self.start_idx is None: return []
@@ -278,7 +303,7 @@ def build_top3_routes(mandatory_stops: list, bonus_candidates: list, prompt_text
     
     # Chuẩn bị dữ liệu
     all_start = time.time()
-    top_bonus = bonus_candidates[:10] # Giới hạn 10 điểm để tránh vượt quá giới hạn Goong API (ma trận 11x11 = 121 ô)
+    top_bonus = bonus_candidates[:8] # Giới hạn 8 điểm bonus để tổng points <= 10 (10x10=100 ô, vừa đủ giới hạn Goong Free)
     for i, b in enumerate(top_bonus):
         if "id" not in b: b["id"] = b.get("poi_id", f"bonus_{i}")
     

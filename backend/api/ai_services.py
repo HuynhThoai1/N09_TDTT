@@ -66,7 +66,7 @@ from google import genai
 from google.genai import types
 from sentence_transformers.util import cos_sim
 
-GEMINI_MODEL = 'gemini-1.5-flash'
+GEMINI_MODEL = 'gemini-2.5-flash'
 
 
 def _get_gemini_client():
@@ -75,35 +75,26 @@ def _get_gemini_client():
     if not api_key:
         print("[WARNING] GEMINI_API_KEY is not set. AI scoring will be skipped.")
         return None
+    
+    # Debug info (Safe)
+    print(f"[DEBUG] Gemini API Key found. Length: {len(api_key)}")
+    if len(api_key) > 8:
+        print(f"[DEBUG] Key starts with: {api_key[:4]}... and ends with: ...{api_key[-4:]}")
+    
     return genai.Client(api_key=api_key)
 
 
 def _call_gemini_with_retry(client, prompt, max_retries=2):
-    """Gọi Gemini với retry khi bị 429 rate limit."""
-    for attempt in range(max_retries + 1):
-        try:
-            response = client.models.generate_content(
-                model=GEMINI_MODEL,
-                contents=prompt
-            )
-            return response.text.strip()
-        except Exception as e:
-            error_str = str(e)
-            is_rate_limited = '429' in error_str
-            is_daily_limit = 'PerDay' in error_str
-
-            if is_rate_limited and is_daily_limit:
-                # Quota hàng ngày đã hết → retry không có ích
-                print(f"[Gemini] Daily quota exhausted. Skipping (no retry).")
-                raise e
-            elif is_rate_limited and attempt < max_retries:
-                # Chỉ retry nếu là giới hạn per-minute
-                wait = 7 * (attempt + 1)
-                print(f"[Gemini] Per-minute rate limit. Retry in {wait}s... ({attempt + 1}/{max_retries})")
-                _time.sleep(wait)
-            else:
-                raise e
-    return None
+    """Gọi Gemini - Đã tắt cơ chế retry, báo lỗi ngay nếu gặp sự cố (như 429)."""
+    try:
+        response = client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=prompt
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"[Gemini Error] Xảy ra lỗi khi gọi API: {e}")
+        raise e
 
 
 # --- VÒNG 1: Chấm điểm bằng Python (S_prompt + S_pref + S_other) ---
@@ -170,12 +161,27 @@ def evaluate_routes_with_gemini(top_routes, prompt_text=""):
             route["final_score"] = route.get("score_v1", 0.5)
         return top_routes
 
-    # Prompt cực ngắn
-    prompt = f'Chấm điểm 1-10 về logic địa lý. User: "{prompt_text}". JSON.\n'
+    prompt = f"""Bạn là chuyên gia du lịch TP.HCM. Chấm điểm các lộ trình dưới đây.
+
+Yêu cầu của khách: "{prompt_text}"
+
+Tiêu chí (mỗi tiêu chí 1-10):
+1. Phù hợp ý định: Lộ trình có đáp ứng đúng "{prompt_text}" không?
+2. Đa dạng trải nghiệm: Có mix ăn uống, tham quan, giải trí không?
+3. Logic di chuyển: Các điểm gần nhau, thứ tự hợp lý không?
+
+"""
     for i, route in enumerate(top_routes):
-        names = ", ".join([p.get('name', '?') for p in route.get('waypoints', [])])
+        names = " -> ".join([p.get('name', '?') for p in route.get('waypoints', [])])
         prompt += f"route_{i}: {names}\n"
-    prompt += 'Trả về: {"route_0": 8, "route_1": 7}'
+        
+    prompt += """
+Trả về JSON thuần (KHÔNG markdown), format:
+{
+  "route_0": {"score": 8, "reason": "Lý do ngắn gọn (1-2 câu) tại sao lộ trình này phù hợp"},
+  "route_1": {"score": 7, "reason": "..."}
+}
+"""
 
     try:
         text = _call_gemini_with_retry(client, prompt)
@@ -188,12 +194,18 @@ def evaluate_routes_with_gemini(top_routes, prompt_text=""):
 
         scores = json.loads(text.strip())
         for i, route in enumerate(top_routes):
-            s_ai = float(scores.get(f"route_{i}", 5)) / 10.0
+            gemini_data = scores.get(f"route_{i}", {})
+            if isinstance(gemini_data, dict):
+                s_ai = float(gemini_data.get("score", 5)) / 10.0
+                route["ai_reason"] = gemini_data.get("reason", route.get("ai_reason", ""))
+            else:
+                s_ai = float(gemini_data) / 10.0
+                
             s_v1 = route.get("score_v1", 0.5)
             route["final_score"] = 0.7 * s_v1 + 0.3 * s_ai
             route["ai_score_raw"] = s_ai * 10
 
-        print(f"[Gemini] Scoring OK (1 API call, {len(top_routes)} routes)")
+        print(f"[Gemini] Scoring & Reasoning OK (1 API call, {len(top_routes)} routes)")
 
     except Exception as e:
         print(f"[Gemini Scoring Error]: {e}")
@@ -214,3 +226,54 @@ def evaluate_and_narrate_routes(top_routes, prompt_text):
 def generate_storytelling(route_pois, prompt_text):
     """Deprecated — storytelling giờ sinh local bằng _generate_ai_reason()."""
     return ""
+
+# --- CƠ CHẾ HỎI NGƯỢC (CLARIFICATION) ---
+
+def analyze_prompt_clarification(prompt_text):
+    """
+    Sử dụng Gemini để phân tích xem prompt của người dùng đã đủ thông tin chưa.
+    Nếu chưa đủ, sinh ra các câu hỏi phỏng vấn.
+    """
+    client = _get_gemini_client()
+    if not client:
+        return {"is_sufficient": True, "questions": []}
+
+    system_instruction = """
+    Bạn là một chuyên gia lập kế hoạch du lịch thông minh.
+    Nhiệm vụ của bạn là đánh giá xem yêu cầu (prompt) của người dùng đã đủ thông tin để tạo một lộ trình HOÀN HẢO chưa.
+    
+    Thông tin hoàn hảo bao gồm:
+    1. Đối tượng đi cùng (Ai?)
+    2. Phong cách trải nghiệm (Vận động mạnh, nhẹ nhàng, lãng mạn...?)
+    3. Ngân sách hoặc sở thích đặc biệt.
+
+    Nếu prompt quá ngắn (ví dụ: "đi chơi", "tìm chỗ ăn") -> Trả về is_sufficient: false và 2-3 câu hỏi.
+    Nếu prompt đã chi tiết -> Trả về is_sufficient: true.
+
+    YÊU CẦU ĐỊNH DẠNG TRẢ VỀ LÀ JSON NGUYÊN BẢN (KHÔNG CÓ ```json):
+    {
+      "is_sufficient": boolean,
+      "questions": [
+        {
+          "question": "Câu hỏi làm rõ...",
+          "options": [
+            {"id": "A", "text": "Lựa chọn 1"},
+            {"id": "B", "text": "Lựa chọn 2"},
+            {"id": "Other", "text": "Khác"}
+          ]
+        }
+      ]
+    }
+    """
+
+    prompt = f"Phân tích prompt sau: '{prompt_text}'"
+    
+    try:
+        response_text = _call_gemini_with_retry(client, f"{system_instruction}\n\n{prompt}")
+        # Làm sạch response nếu AI trả về markdown
+        clean_json = response_text.replace("```json", "").replace("```", "").strip()
+        result = json.loads(clean_json)
+        return result
+    except Exception as e:
+        print(f"[Clarification Error] Lỗi phân tích prompt: {e}")
+        return {"is_sufficient": True, "questions": []} # Fallback: Cho phép đi tiếp

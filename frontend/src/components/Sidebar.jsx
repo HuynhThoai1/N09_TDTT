@@ -49,217 +49,367 @@ export default function Sidebar({
     onResetShortestPath,
     onReviewSelectedRoute,
 }) {
-    // --- STATE VIBES (SỞ THÍCH) ---
-    const [userVibes, setUserVibes] = useState([]);
+	const [isOpen, setIsOpen] = useState(true);
+	const [heroImageOverride, setHeroImageOverride] = useState(null);
+	const [activeTab, setActiveTab] = useState("plan");
 
-    // --- STATE CỦA ĐỒNG ĐỘI (GIAO DIỆN & AI) ---
-    const [isOpen, setIsOpen] = useState(true);
-    const [heroImageOverride, setHeroImageOverride] = useState(null);
-    const [activeTab, setActiveTab] = useState("plan");
-    const navigate = useNavigate();
+	const [userVibes, setUserVibes] = useState([]);
+	const navigate = useNavigate();
 
-    const [searchTerm, setSearchTerm] = useState("");
-    const [suggestions, setSuggestions] = useState([]);
-    const [selectedLocation, setSelectedLocation] = useState(null);
-    const [goalText, setGoalText] = useState("");
+	const [searchTerm, setSearchTerm] = useState("");
+	const [suggestions, setSuggestions] = useState([]);
+	const [selectedLocation, setSelectedLocation] = useState(null);
 
-    const [expandedRouteId, setExpandedRouteId] = useState(null);
-    const [selectedSuggestionId, setSelectedSuggestionId] = useState(null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [duplicateId, setDuplicateId] = useState(null);
-    const [previewImage, setPreviewImage] = useState(null);
-    const [shareState, setShareState] = useState({
-        routeId: null,
-        status: "idle",
-        message: "",
-    });
-    const isSelectingRef = useRef(false);
+	const [goalText, setGoalText] = useState("");
 
-    // AI Interview States
-    const [showAIQuestions, setShowAIQuestions] = useState(true);
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [aiAnswers, setAIAnswers] = useState({});
-    const [otherAnswer, setOtherAnswer] = useState("");
+	const [expandedRouteId, setExpandedRouteId] = useState(null);
+	const [selectedSuggestionId, setSelectedSuggestionId] = useState(null);
+	const [isGenerating, setIsGenerating] = useState(false);
+	const [duplicateId, setDuplicateId] = useState(null);
+	const [previewImage, setPreviewImage] = useState(null);
+	const [shareState, setShareState] = useState({
+		routeId: null,
+		status: "idle",
+		message: "",
+	});
+	const isSelectingRef = useRef(false);
 
-    const aiQuestions = [
-        { id: 1, question: "Chuyến đi này bạn dự định đi cùng ai?", options: [{ id: "A", text: "Đi một mình" }, { id: "B", text: "Cùng người yêu/bạn đời" }, { id: "C", text: "Cùng gia đình" }, { id: "D", text: "Nhóm bạn thân" }] },
-        { id: 2, question: "Mức độ vận động mong muốn?", options: [{ id: "A", text: "Nhẹ nhàng" }, { id: "B", text: "Vừa phải" }, { id: "C", text: "Năng động" }, { id: "D", text: "Thử thách" }] },
-        { id: 3, question: "Ngân sách dự kiến?", options: [{ id: "A", text: "Tiết kiệm" }, { id: "B", text: "Phổ thông" }, { id: "C", text: "Thoải mái" }, { id: "D", text: "Không giới hạn" }] },
-    ];
+	// AI Callback Interview States
+	const [showAIQuestions, setShowAIQuestions] = useState(false);
+	const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+	const [aiAnswers, setAIAnswers] = useState({});
+	const [otherAnswer, setOtherAnswer] = useState("");
+	const [aiQuestions, setAiQuestions] = useState([]);
 
-    // --- LOGIC ĐĂNG NHẬP & VIBES (HỢP NHẤT) ---
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            if (currentUser) {
-                try {
-                    const token = await currentUser.getIdToken();
-                    const response = await fetch(`${getApiBase()}/api/profile/vibes/`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    if (response.ok) {
-                        const data = await response.json();
-                        setUserVibes(data.vibes || []);
-                    }
-                } catch (err) {
-                    console.error("Lỗi fetch vibes:", err);
-                }
-            } else {
-                setUserVibes([]);
-            }
-        });
-        return () => unsubscribe();
-    }, []);
+	const handleSearchChange = (e) => {
+		const val = e.target.value;
+		setSearchTerm(val);
+		if (val.length === 0) {
+			setSuggestions([]);
+			setSelectedLocation(null);
+		}
+	};
 
-    // --- LOGIC XỬ LÝ SEARCH & DETAIL (HỢP NHẤT) ---
-    const handleSearchChange = (e) => {
-        const val = e.target.value;
-        setSearchTerm(val);
-        if (val.length === 0) {
-            setSuggestions([]);
-            setSelectedLocation(null);
-        }
-    };
+	useEffect(() => {
+		getUserVibes()
+			.then((data) => setUserVibes(data.vibes || []))
+			.catch(() => {}); // Chưa đăng nhập thì bỏ qua
+	}, []);
 
-    useEffect(() => {
-        if (!detailLocation) return;
-        setIsOpen(true);
-        setActiveTab("detail");
-    }, [detailLocation]);
+	useEffect(() => {
+		if (!detailLocation) return;
+		setIsOpen(true);
+		setActiveTab("detail");
+	}, [detailLocation]);
 
-    useEffect(() => {
-        if (searchTerm.trim().length === 0) {
-            setSuggestions([]);
-            return;
-        }
-        if (isSelectingRef.current) {
-            isSelectingRef.current = false;
-            return;
-        }
-        const delayDebounceFn = setTimeout(async () => {
-            try {
-                const response = await fetch(`${getApiBase()}/api/goong/autocomplete/?input=${encodeURIComponent(searchTerm)}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const mapped = (data.predictions || []).map((p) => ({
-                        id: p.place_id, poi_id: p.place_id, name: p.description,
-                        address: p.compound?.address || p.description, latitude: null, longitude: null, is_goong_place: true,
-                    }));
-                    setSuggestions(mapped);
-                }
-            } catch (error) { console.error("Network error:", error); }
-        }, 300);
-        return () => clearTimeout(delayDebounceFn);
-    }, [searchTerm]);
+	// Kỹ thuật debounce search (300ms sau khi người dùng ngừng gõ thì mới gọi API)
+	useEffect(() => {
+		if (searchTerm.trim().length === 0) {
+			setSuggestions([]);
+			return;
+		}
 
-    const handleSelectLocation = async (loc) => {
-        isSelectingRef.current = true;
-        if (loc.is_goong_place) {
-            try {
-                const response = await fetch(`${getApiBase()}/api/goong/place-detail/?place_id=${encodeURIComponent(loc.poi_id)}`);
-                if (response.ok) {
-                    const detail = await response.json();
-                    if (detail && detail.result) {
-                        const result = detail.result;
-                        const updatedLoc = {
-                            ...loc, latitude: result.geometry.location.lat, longitude: result.geometry.location.lng,
-                            name: result.name, address: result.formatted_address,
-                        };
-                        setSelectedLocation(updatedLoc);
-                        setSearchTerm(loc.name || result.formatted_address);
-                        onFocusLocation?.({ ...updatedLoc, isSearching: true });
-                    }
-                }
-            } catch (error) { console.error("Detail error:", error); }
-        } else {
-            setSelectedLocation(loc);
-            setSearchTerm(loc.name);
-            onFocusLocation?.({ ...loc, isSearching: true });
-        }
-        setSuggestions([]);
-    };
+		if (isSelectingRef.current) {
+			isSelectingRef.current = false;
+			return;
+		}
 
-    const handleAddStop = () => {
-        if (selectedLocation) {
-            onStopsChange([selectedLocation]);
-            onFocusLocation?.(selectedLocation);
-            setSearchTerm("");
-            setSelectedLocation(null);
-        }
-    };
+		const delayDebounceFn = setTimeout(async () => {
+			try {
+				const response = await fetch(
+					`${getApiBase()}/api/goong/autocomplete/?input=${encodeURIComponent(searchTerm)}`,
+				);
+				if (response.ok) {
+					const data = await response.json();
+					// Mapping kết quả từ Goong sang format của Frontend
+					const mapped = (data.predictions || []).map((p) => ({
+						id: p.place_id,
+						poi_id: p.place_id,
+						name: p.description,
+						address: p.compound?.address || p.description,
+						latitude: null, // Sẽ lấy tọa độ chi tiết khi người dùng chọn
+						longitude: null,
+						is_goong_place: true,
+					}));
+					setSuggestions(mapped);
+				} else {
+					console.error("Lỗi khi tìm kiếm địa điểm");
+				}
+			} catch (error) {
+				console.error("Network error:", error);
+			}
+		}, 300);
 
-    const removeStop = (index) => onStopsChange(stops.filter((_, idx) => idx !== index));
-    const openDetail = (loc) => {
-        setHeroImageOverride(null);
-        onDetailLocationChange(loc);
-        onFocusLocation(loc);
-        setActiveTab("detail");
-    };
+		return () => clearTimeout(delayDebounceFn);
+	}, [searchTerm]);
 
-    const runSmartItinerary = async () => {
-        if (stops.length < 1) return;
-        setShowAIQuestions(true);
-        setCurrentQuestionIndex(0);
-    };
+	const handleSelectLocation = async (loc) => {
+		isSelectingRef.current = true;
 
-    const handleFinishAIQuestions = async () => {
-        setIsGenerating(true);
-        setShowAIQuestions(false);
-        const vibeContext = userVibes.length > 0 ? ". Ưu tiên: " + userVibes.map((v) => v.label).join(", ") : "";
-        const payload = {
-            stops: stops.map((s) => ({ id: s.id || s.poi_id, name: s.name, latitude: s.latitude, longitude: s.longitude })),
-            prompt_text: goalText.trim() + vibeContext,
-        };
-        try {
-            const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-            });
-            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-            const result = await response.json();
-            const suggestionsList = (result.routes || []).map((r) => ({
-                ...r, totalDuration: r.duration_text || "Chưa rõ", totalDistance: r.distance_text || "Chưa rõ",
-                waypoints: r.waypoints || [],
-            }));
-            onResetShortestPath?.();
-            onRouteSuggestionsChange(suggestionsList);
-            setSelectedSuggestionId(null);
-            onSelectedRouteChange(null);
-            setActiveTab("results");
-        } catch (err) { console.error("AI Error:", err); onRouteSuggestionsChange([]); setActiveTab("results"); }
-        finally { setIsGenerating(false); }
-    };
+		// Nếu là địa điểm từ Goong, cần lấy tọa độ chi tiết
+		if (loc.is_goong_place) {
+			try {
+				const response = await fetch(
+					`${getApiBase()}/api/goong/place-detail/?place_id=${encodeURIComponent(loc.poi_id)}`,
+				);
+				if (response.ok) {
+					const detail = await response.json();
+					if (detail && detail.result) {
+						const result = detail.result;
+						const updatedLoc = {
+							...loc,
+							latitude: result.geometry.location.lat,
+							longitude: result.geometry.location.lng,
+							name: result.name,
+							address: result.formatted_address,
+						};
+						setSelectedLocation(updatedLoc);
+						// Hiển thị tên đầy đủ từ gợi ý vào ô search để người dùng biết mình đã chọn đúng
+						setSearchTerm(loc.name || result.formatted_address);
+						onFocusLocation?.({ ...updatedLoc, isSearching: true });
+					} else {
+						console.error(
+							"Lỗi Goong API hoặc không có result:",
+							detail,
+						);
+						isSelectingRef.current = false;
+					}
+				} else {
+					console.error("Lỗi kết nối API:", response.status);
+					isSelectingRef.current = false;
+				}
+			} catch (error) {
+				console.error("Lỗi khi lấy chi tiết địa điểm Goong:", error);
+				isSelectingRef.current = false;
+			}
+		} else {
+			setSelectedLocation(loc);
+			setSearchTerm(loc.name);
+			onFocusLocation?.({ ...loc, isSearching: true });
+		}
+		setSuggestions([]);
+	};
 
-    const selectRouteSuggestion = (route) => {
-        setSelectedSuggestionId(route.id);
-        onSelectedRouteChange(route);
-        onFocusLocation(null);
-    };
+	const handleAddStop = () => {
+		if (selectedLocation) {
+			// Luôn thay thế địa điểm hiện tại bằng địa điểm mới chọn
+			onStopsChange([selectedLocation]);
+			onFocusLocation?.(selectedLocation);
+			setSearchTerm("");
+			setSelectedLocation(null);
+		}
+	};
 
-    const handleShareRoute = async (route) => {
-        try {
-            setShareState({ routeId: route.id, status: "loading", message: "Đang tạo link..." });
-            const response = await fetch(`${getApiBase()}/api/shared-routes/`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ route, stops, prompt_text: goalText.trim(), created_from: "frontend" }),
-            });
-            const result = await response.json();
-            const shareUrl = `${window.location.origin}/share/${result.share_id}`;
-            await navigator.clipboard.writeText(shareUrl);
-            setShareState({ routeId: route.id, status: "success", message: "Đã copy link chia sẻ!" });
-        } catch (error) { setShareState({ routeId: route.id, status: "error", message: "Lỗi tạo link." }); }
-    };
+	const removeStop = (index) => {
+		onStopsChange(stops.filter((_, idx) => idx !== index));
+	};
 
-    const displayDetail = detailLocation ?? selectedLocation;
+	const openDetail = (loc) => {
+		setHeroImageOverride(null);
+		onDetailLocationChange(loc);
+		onFocusLocation(loc);
+		setActiveTab("detail");
+	};
 
-    return (
-        <>
-            {/* Nút mở/đóng Sidebar */}
-            <button
-                type="button"
-                onClick={() => setIsOpen(!isOpen)}
-                className={`fixed top-1/2 -translate-y-1/2 z-[1002] w-6 h-14 bg-slate-900/80 backdrop-blur-md border border-slate-700 shadow-lg flex items-center justify-center rounded-r-xl transition-all duration-300 hover:bg-slate-800 text-slate-300
+	const runSmartItinerary = async () => {
+		if (stops.length < 1) return;
+		setIsGenerating(true);
+
+		const payload = {
+			stops: stops.map((s) => ({
+				id: s.id || s.poi_id,
+				name: s.name,
+				latitude: s.latitude,
+				longitude: s.longitude,
+			})),
+			prompt_text: goalText.trim(),
+			is_confirmed: false,
+		};
+
+		try {
+			const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+
+			const result = await response.json();
+
+			if (result.status === "needs_clarification") {
+				setIsGenerating(false);
+				setAiQuestions(result.questions);
+				setShowAIQuestions(true);
+				setCurrentQuestionIndex(0);
+				setAIAnswers({});
+			} else {
+				// Nếu đủ thông tin, xử lý kết quả luôn
+				handleAIResponse(result);
+			}
+		} catch (error) {
+			console.error("Lỗi khi kiểm tra prompt:", error);
+			setIsGenerating(false);
+		}
+	};
+
+	const handleAIResponse = (result) => {
+		console.log("[FE] Kết quả Smart Itinerary:", result);
+
+		// Chuyển đổi format routes từ backend sang format frontend
+		const suggestionsList = (result.routes || []).map((r) => ({
+			id: r.id,
+			label: r.label,
+			theme: r.theme,
+			description: r.description,
+			duration: r.total_time,
+			distance: r.total_distance,
+			ai_reason: r.ai_reason,
+			duration_text: r.duration_text,
+			total_stops: r.total_stops,
+			totalDuration: r.duration_text || "Chưa rõ",
+			totalDistance: r.distance_text || "Chưa rõ",
+			waypoints: r.waypoints || [],
+			polyline: r.polyline || null,
+			stops: (r.pois || []).map((p) => ({
+				id: p.id || p.poi_id,
+				name: p.name,
+				latitude: p.latitude,
+				longitude: p.longitude,
+				image: resolveImageUrl(p.image),
+				category: p.category,
+				reason: p.reason,
+			})),
+		}));
+
+		onResetShortestPath?.();
+		onRouteSuggestionsChange(suggestionsList);
+		setSelectedSuggestionId(null);
+		onSelectedRouteChange(null);
+		onDetailLocationChange(null);
+		onFocusLocation(null);
+		setExpandedRouteId(null);
+		setActiveTab("results");
+
+		setIsGenerating(false);
+	};
+
+	const handleFinishAIQuestions = async () => {
+		setIsGenerating(true);
+		setShowAIQuestions(false);
+
+		// Chuyển đổi câu trả lời sang format text
+		const clarificationPayload = {};
+		aiQuestions.forEach((q, idx) => {
+			const answerId = aiAnswers[idx];
+			if (answerId === "Other") {
+				clarificationPayload[q.question] = otherAnswer;
+			} else {
+				const option = q.options.find((o) => o.id === answerId);
+				clarificationPayload[q.question] = option ? option.text : "";
+			}
+		});
+
+		const payload = {
+			stops: stops.map((s) => ({
+				id: s.id || s.poi_id,
+				name: s.name,
+				latitude: s.latitude,
+				longitude: s.longitude,
+			})),
+			prompt_text: goalText.trim(),
+			is_confirmed: true,
+			ai_clarification: clarificationPayload,
+		};
+
+		console.log("[FE] Gửi lại với xác nhận:", payload);
+
+		try {
+			const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(payload),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const result = await response.json();
+			handleAIResponse(result);
+		} catch (error) {
+			console.error("Lỗi khi gửi clarification:", error);
+			setIsGenerating(false);
+		}
+	};
+
+	const selectRouteSuggestion = (route) => {
+		setSelectedSuggestionId(route.id);
+		onSelectedRouteChange(route);
+		onFocusLocation(null);
+	};
+
+	const handleShareRoute = async (route) => {
+		try {
+			setShareState({
+				routeId: route.id,
+				status: "loading",
+				message: "Đang tạo link chia sẻ...",
+			});
+			const response = await fetch(`${getApiBase()}/api/shared-routes/`, {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					route,
+					stops,
+					prompt_text: goalText.trim(),
+					created_from: "frontend",
+				}),
+			});
+
+			if (!response.ok) {
+				throw new Error(`HTTP ${response.status}`);
+			}
+
+			const result = await response.json();
+			const shareUrl = `${window.location.origin}/share/${result.share_id}`;
+
+			try {
+				await navigator.clipboard.writeText(shareUrl);
+			} catch {
+				window.prompt("Copy link chia sẻ", shareUrl);
+			}
+
+			setShareState({
+				routeId: route.id,
+				status: "success",
+				message: "Đã tạo link và copy vào clipboard.",
+			});
+		} catch (error) {
+			console.error("Lỗi khi tạo shared route:", error);
+			setShareState({
+				routeId: route.id,
+				status: "error",
+				message: "Không tạo được link chia sẻ.",
+			});
+		}
+	};
+
+	const handleReview = () => {
+		const picked = routeSuggestions.find(
+			(r) => r.id === selectedSuggestionId,
+		);
+		if (!picked) return;
+		onSelectedRouteChange(picked);
+		onReviewSelectedRoute?.();
+	};
+
+	const displayDetail = detailLocation ?? selectedLocation;
+
+	return (
+		<>
+			<button
+				type="button"
+				onClick={() => setIsOpen(!isOpen)}
+				className={`fixed top-1/2 -translate-y-1/2 z-[1002] w-6 h-14 bg-slate-900/80 backdrop-blur-md border border-slate-700 shadow-[0_0_15px_rgba(59,130,246,0.3)] flex items-center justify-center rounded-r-xl transition-all duration-300 hover:bg-slate-800 text-slate-300
                 ${isOpen ? "left-[28rem]" : "left-0"}`}
             >
                 {isOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}

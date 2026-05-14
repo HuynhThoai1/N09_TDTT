@@ -20,6 +20,7 @@ from .serializers import (
 from .semantic_search import find_related_pois
 from .itinerary_optimizer import build_top3_routes
 from .goong_service import goong_autocomplete, goong_place_detail, goong_geocode, goong_reverse_geocode
+from .ai_services import analyze_prompt_clarification
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -134,6 +135,21 @@ def smartItinerary(request):
     raw_stops = data.get("stops", [])
     prompt_text = data.get("prompt_text", "").strip()
 
+    # --- Bước 0: AI Gatekeeper (Kiểm tra và hỏi ngược ngay lập tức) ---
+    is_confirmed = data.get("is_confirmed", False)
+    ai_clarification = data.get("ai_clarification")
+
+    # Nếu chưa xác nhận và chưa có câu trả lời phỏng vấn, kiểm tra độ đầy đủ của prompt
+    if not is_confirmed and not ai_clarification:
+        analysis = analyze_prompt_clarification(prompt_text)
+        if not analysis.get("is_sufficient", True):
+            print(f"[AI Gatekeeper] Phản hồi sớm: Prompt '{prompt_text}' chưa đủ thông tin.")
+            return Response({
+                "status": "needs_clarification",
+                "questions": analysis.get("questions", [])
+            })
+
+    # --- Bước 1: Khởi tạo dữ liệu & Validation ---
     if len(raw_stops) < 1:
         return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
 
@@ -146,7 +162,14 @@ def smartItinerary(request):
         except Exception:
             pass
 
-    # Làm giàu dữ liệu Stops từ Database 
+    # Nếu người dùng đã trả lời phỏng vấn, nối vào prompt để làm giàu ngữ cảnh
+    if ai_clarification:
+        clarification_text = ". ".join([f"{k}: {v}" for k, v in ai_clarification.items() if v])
+        if clarification_text:
+            prompt_text = f"{prompt_text}. Ngữ cảnh bổ sung: {clarification_text}"
+            print(f"[AI Gatekeeper] Prompt đã được làm giàu: {prompt_text}")
+
+    # --- Bước 0: Làm giàu dữ liệu Stops từ Database ---
     enriched_stops = []
     for s in raw_stops:
         sid = s.get("poi_id") or s.get("id")
@@ -308,3 +331,37 @@ def goongGeocode(request):
 
     return Response(data)
 
+@api_view(['GET', 'POST'])
+def reindex_vectors(request):
+    """
+    Endpoint nội bộ để tính toán lại text_vector cho các địa điểm.
+    Chạy trong process của Django để tận dụng model đã nạp sẵn vào RAM, tránh lỗi Lock cache file.
+    """
+    from .semantic_search import _get_sbert_model
+    import json
+    
+    sbert_model = _get_sbert_model()
+    if not sbert_model:
+        return Response({"error": "SBERT model not loaded yet."}, status=500)
+        
+    pois = PointOfInterest.objects.all()
+    total = pois.count()
+    count = 0
+    
+    for poi in pois:
+        text = f"{poi.name or ''} {poi.category or ''} {poi.description or ''}"
+        try:
+            vector = sbert_model.encode(text).tolist()
+            poi.text_vector = vector
+            poi.save()
+            count += 1
+        except Exception as e:
+            print(f"[Reindex] Error processing POI {poi.id}: {e}")
+            
+    return Response({
+        "message": "Reindex successful.",
+        "total_pois": total,
+        "indexed_pois": count
+    })
+
+# --- Vibe Tags ---
