@@ -45,6 +45,9 @@ Dự án sử dụng hệ sinh thái Goong Maps và Google Gemini AI. Bạn cầ
 VITE_FIREBASE_API_KEY=...
 ```
 
+> [!NOTE]
+> Lấy file serviceAccountKey.json và key firebase ở drive
+
 ### Google Gemini AI (Tùy chọn — dùng để AI chấm điểm lộ trình)
 
 1.  Truy cập [Google AI Studio](https://aistudio.google.com/).
