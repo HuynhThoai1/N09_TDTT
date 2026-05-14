@@ -579,13 +579,13 @@ export default function MapView({
 					</button>
 
 					<div
-						className={`absolute top-0 right-0 z-[499] h-full w-[280px] bg-slate-950/90 backdrop-blur-xl border-l border-slate-800 text-slate-100 shadow-2xl transition-transform duration-300 ${
+						className={`absolute top-0 right-0 z-[499] h-full w-[280px] flex flex-col bg-slate-950/90 backdrop-blur-xl border-l border-slate-800 text-slate-100 shadow-2xl transition-transform duration-300 ${
 							routePanelOpen
 								? "translate-x-0"
 								: "translate-x-full"
 						}`}
 					>
-						<div className="p-4 border-b border-slate-800 flex items-center gap-2">
+						<div className="p-4 border-b border-slate-800 flex items-center gap-2 shrink-0">
 							<Route
 								className="text-blue-400 shrink-0"
 								size={18}
@@ -598,28 +598,10 @@ export default function MapView({
 									{route.label}
 								</p>
 							</div>
-							<div className="ml-auto flex items-center gap-2">
-								<button
-									type="button"
-									disabled={isRecalculatingRoute}
-									onClick={async () => {
-										if (!onOptimizeRoute) return;
-										const ok = await onOptimizeRoute();
-										if (ok) {
-											showActionNotice("success", "Tối ưu lộ trình thành công.");
-										} else {
-											showActionNotice("error", "Tối ưu lộ trình thất bại.");
-										}
-									}}
-									className="px-3 py-1.5 text-xs rounded-md bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700"
-								>
-									Tối ưu lộ trình
-								</button>
-							</div>
 						</div>
 
 						{/* Search box to add new waypoint */}
-						<div className="p-3 border-b border-slate-800 space-y-2">
+						<div className="p-3 border-b border-slate-800 space-y-2 shrink-0">
 							<label className="text-xs uppercase text-slate-500 tracking-wider block">
 								Thêm địa điểm
 							</label>
@@ -687,7 +669,7 @@ export default function MapView({
 							)}
 						</div>
 
-						<ul className="overflow-y-auto max-h-[calc(100%-11rem)] py-2">
+						<ul className="overflow-y-auto flex-1 py-2">
 							{ordered.map((w, i) => {
 								const isDragging = dragIndex === i;
 								const isDragOver = dragOverIndex === i;
@@ -786,6 +768,32 @@ export default function MapView({
 								);
 								})}
 						</ul>
+
+						<div className="p-4 border-t border-slate-800 shrink-0 bg-slate-900/50">
+							<button
+								type="button"
+								disabled={isRecalculatingRoute}
+								onClick={async () => {
+									if (!onOptimizeRoute) return;
+									const ok = await onOptimizeRoute();
+									if (ok) {
+										showActionNotice("success", "Tối ưu lộ trình thành công.");
+									} else {
+										showActionNotice("error", "Tối ưu lộ trình thất bại.");
+									}
+								}}
+								className="w-full px-4 py-2.5 text-sm font-medium rounded-md bg-blue-600 hover:bg-blue-500 text-white shadow-[0_0_15px_rgba(37,99,235,0.3)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{isRecalculatingRoute ? (
+									<>
+										<Loader2 className="animate-spin" size={16} />
+										Đang tối ưu...
+									</>
+								) : (
+									"Tối ưu lộ trình"
+								)}
+							</button>
+						</div>
 					</div>
 				</>
 			)}
