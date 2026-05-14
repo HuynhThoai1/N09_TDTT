@@ -34,18 +34,15 @@ Dự án sử dụng hệ sinh thái Goong Maps và Google Gemini AI. Bạn cầ
 ### Goong Maps (Bắt buộc — dùng để hiển thị bản đồ & tính toán lộ trình)
 
 1.  Đăng ký tài khoản tại [account.goong.io](https://account.goong.io/).
-2.  Tạo 3 loại Key:
+2.  Tạo 2 loại Key:
     - **REST API Key**: Điền vào `backend/.env` ở dòng `GOONG_API_KEY=...`
     - **Maptiles Key**: Điền vào `frontend/.env` ở dòng `VITE_GOONG_MAPTILES_KEY=...`
-    - **Gemini API Key**: Điền vào `backend/.env` ở dòng `GEMINI_API_KEY=...`
 
 3. Để tính năng Đăng nhập và Profile hoạt động, cần cấu hình các file bảo mật
     - **Backend**: Copy file `serviceAccountKey.json` vào thư mục `backend/.`
     - **Frontend**: Cập nhật các biến sau vào file `frontend/.env`:
 ```bash
 VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
 ```
 
 ### Google Gemini AI (Tùy chọn — dùng để AI chấm điểm lộ trình)
