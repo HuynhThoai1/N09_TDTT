@@ -1,13 +1,17 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import MapView from "@/components/Map/MapView";
 import UserAuthMenu from "@/components/UserAuthMenu";
+import OnboardingModal from "./OnboardingPage";
 
 const getApiBase = () => {
-    return "http://192.168.46.87:8000"; 
+	if (typeof window === "undefined") return "http://localhost:8000";
+	return `${window.location.protocol}//${window.location.hostname}:8000`;
 };
 
 export default function MainPage() {
+	const location = useLocation();
 	const [focusedLocation, setFocusedLocation] = useState(null);
 	const [detailLocation, setDetailLocation] = useState(null);
 	const [stops, setStops] = useState([]);
@@ -16,6 +20,18 @@ export default function MainPage() {
 	const [shortestPath, setShortestPath] = useState(false);
 	const [mapRecenterKey, setMapRecenterKey] = useState(0);
 	const [isRecalculatingRoute, setIsRecalculatingRoute] = useState(false);
+
+	// Modal onboarding bắt buộc khi đăng ký lần đầu
+	const [showOnboardingModal, setShowOnboardingModal] = useState(
+		location.state?.showOnboarding === true
+	);
+
+	// Xóa state khỏi history để tránh mở lại khi refresh
+	useEffect(() => {
+		if (location.state?.showOnboarding) {
+			window.history.replaceState({}, document.title);
+		}
+	}, []);
 
 	const handleReviewSelectedRoute = () => {
 		setFocusedLocation(null);
@@ -46,6 +62,7 @@ export default function MainPage() {
 					body: JSON.stringify({
 						stops: waypointsForApi,
 						prompt_text: "", // No additional prompt, just recalculate
+						is_confirmed: true
 					}),
 				}
 			);
@@ -108,7 +125,7 @@ export default function MainPage() {
 			const response = await fetch(`${getApiBase()}/api/smart-itinerary/`, {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify({ stops: waypointsForApi, prompt_text: "Optimize route", fix_endpoints: true }),
+				body: JSON.stringify({ stops: waypointsForApi, prompt_text: "Optimize route", fix_endpoints: true, is_confirmed: true }),
 			});
 			if (response.ok) {
 				const result = await response.json();
@@ -187,6 +204,14 @@ export default function MainPage() {
 					recenterKey={mapRecenterKey}
 				/>
 			</main>
+
+			{/* Modal onboarding bắt buộc — hiện khi đăng ký lần đầu */}
+			<OnboardingModal
+				isOpen={showOnboardingModal}
+				required={true}
+				onClose={() => setShowOnboardingModal(false)}
+			/>
 		</div>
 	);
 }
+

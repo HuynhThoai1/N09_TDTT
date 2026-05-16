@@ -56,6 +56,7 @@ def _get_poi_vectors_cached():
                     "image_list": p.image_list,
                     "category": p.category,
                     "description": p.description,
+                    "rating": p.rating,  # Điểm đánh giá từ cộng đồng (Google Maps)
                     "vector": p.vector, # CLIP
                     "text_vector": p.text_vector, # SBERT
                 })
@@ -124,6 +125,8 @@ def find_related_pois(prompt_text: str, mandatory_stops: list, top_k: int = 10, 
             "image": poi["image"],
             "image_list": poi["image_list"],
             "category": poi["category"],
+            "description": poi.get("description", ""),
+            "rating": poi.get("rating", 0),
             "similarity_score": round(combined_score, 4),
             "text_score": round(text_score, 4),
             "visual_score": round(visual_score, 4)

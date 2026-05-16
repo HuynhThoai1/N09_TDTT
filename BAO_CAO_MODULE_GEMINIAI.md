@@ -2,7 +2,8 @@
 
 > **Người phụ trách:** Huỳnh Chí Thoại  
 > **Ngày báo cáo:** 11/05/2026  
-> **Trạng thái:** ⚠️ Hoàn thành kiến trúc & Fallback — Chờ fix lỗi tương thích Model Gemini
+> **Cập nhật lần cuối:** 16/05/2026 (Fix Vibe + Rating + Công thức mới)  
+> **Trạng thái:** ✅ Scoring Pipeline đã hoạt động đầy đủ
 
 ---
 
@@ -16,11 +17,11 @@ Tích hợp **Google Gemini API** vào pipeline tối ưu hóa lộ trình để
 
 ### 2.1. Kiến trúc tổng thể — Scoring Pipeline 2 Vòng
 
-Hệ thống chấm điểm lộ trình hiện tại hoạt động theo mô hình **2 vòng**:
+Hệ thống chấm điểm lộ trình hoạt động theo mô hình **2 vòng**:
 
 | Vòng | Tên | Phương pháp | Trọng số |
 |---|---|---|---|
-| **Vòng 1** | `score_v1` | Tính hoàn toàn bằng Python (Cosine Similarity + Vibe Tag + Rating) | 70% |
+| **Vòng 1** | `score_v1` | Tính hoàn toàn bằng Python (Cosine Similarity + Vibe Tag + Time Penalty) | 70% |
 | **Vòng 2** | `ai_score` | Gọi Gemini API chấm điểm logic địa lý | 30% |
 
 **Công thức:** `final_score = 0.7 × score_v1 + 0.3 × ai_score`
@@ -38,53 +39,70 @@ Hệ thống chấm điểm lộ trình hiện tại hoạt động theo mô hì
 
 ### 2.3. Cơ chế Retry thông minh
 
-Hàm `_call_gemini_with_retry()` trong `ai_services.py` phân biệt 2 loại rate limit:
+Hàm `_call_gemini_with_retry()` phân biệt 2 loại rate limit:
 
 - **Per-Minute (RPM):** Retry tối đa 2 lần với exponential backoff (7s → 14s).
 - **Per-Day (hết quota ngày):** Bỏ qua ngay lập tức, không retry, để response nhanh nhất.
 
 ### 2.4. Storytelling Local
 
-Thay vì gọi API để AI viết mô tả cho mỗi lộ trình (tốn 3 API call), module đã triển khai hàm `_generate_ai_reason()` trong `itinerary_optimizer.py`. Hàm này:
-
-- Phân tích các điểm bonus có `similarity_score` cao nhất.
-- Sử dụng template chuyên nghiệp kết hợp với dữ liệu thực (tên, category, description).
-- Việt hóa category từ tiếng Anh sang tiếng Việt qua bảng `CATEGORY_MAP`.
-- Hoàn toàn miễn phí, không tốn API quota.
+Thay vì gọi API để AI viết mô tả cho mỗi lộ trình (tốn 3 API call), module đã triển khai hàm `_generate_ai_reason()` trong `itinerary_optimizer.py` — hoàn toàn miễn phí, không tốn API quota.
 
 ### 2.5. Migration SDK & Dọn dẹp cấu hình
 
-- **SDK:** Chuyển từ thư viện cũ `google-generativeai` (deprecated) sang `google-genai` v2.x.
-- **Dọn dẹp `.env`:** Xóa file `.env` trùng lặp ở thư mục gốc (chứa placeholder `YOUR_GOONG_API_KEY_HERE`) để tránh xung đột biến môi trường.
-- **`settings.py`:** Chỉ load `backend/.env` với `override=True` để đảm bảo key luôn đúng.
+- **SDK:** Chuyển từ `google-generativeai` (deprecated) sang `google-genai` v2.x.
+- **Dọn dẹp `.env`:** Xóa file `.env` trùng lặp ở thư mục gốc.
+- **`settings.py`:** Chỉ load `backend/.env` với `override=True`.
 
 ---
 
-## 3. Những gì chưa hoàn thành ❌
+## 3. Kết quả kiểm tra & Cập nhật Scoring Pipeline (16/05/2026)
 
-### 3.1. Lỗi tương thích Model Gemini (404 NOT_FOUND)
+### 3.1. Vòng 1 — `score_v1` (70%) — Công thức đã cập nhật
 
-**Hiện trạng:** Khi gọi API Gemini, server trả về lỗi:
+**Công thức mới:** `score_v1 = 0.5 × S_prompt + 0.3 × S_pref + 0.2 × S_time`
 
-```
-404 NOT_FOUND: models/gemini-1.5-flash is not found for API version v1beta,
-or is not supported for generateContent.
-```
+#### 3.1.1. S_prompt (50%) — Cosine Similarity ✅
 
-**Nguyên nhân phân tích:**
-- Thư viện `google-genai` v2.x mặc định gọi endpoint `v1beta`.
-- Một số model (như `gemini-1.5-flash`, `gemini-2.0-flash`) có thể không khả dụng trên endpoint `v1beta` tùy vào region hoặc trạng thái tài khoản.
-- Tài khoản Free Tier mới tạo có thể bị hạn chế truy cập vào một số model nhất định.
+| Mục | Chi tiết |
+|---|---|
+| **Cách hoạt động** | Model `keepitreal/vietnamese-sbert` encode prompt + mô tả POI → tính `cos_sim()` → lấy **max**. |
+| **Trọng số** | **50%** (tăng từ 40%) — Thành phần đáng tin nhất, dùng AI chuyên dụng tiếng Việt. |
 
-**Hướng khắc phục (chưa triển khai):**
-1. Gọi `client.models.list()` để kiểm tra danh sách model thực sự khả dụng trên API key hiện tại.
-2. Thử các model thay thế: `gemini-2.0-flash-lite`, `gemini-1.5-flash-8b`, `gemini-pro`.
-3. Cân nhắc sử dụng endpoint `v1` thay vì `v1beta` (nếu SDK hỗ trợ).
-4. Nếu không thể khắc phục, có thể tắt hoàn toàn Gemini scoring — hệ thống vẫn chạy bình thường với `score_v1`.
+#### 3.1.2. S_pref (30%) — Vibe Tag Matching ✅ ĐÃ FIX
 
-### 3.2. Chấm điểm Gemini chưa bao giờ chạy thành công trên production
+| Mục | Chi tiết |
+|---|---|
+| **Cách hoạt động** | Dùng `prompt_keyword` (VD: `"cafe, cà phê"`) thay vì `label` (VD: `"Nghiện Cafe"`). Tách keyword theo dấu phẩy, kiểm tra trong `category + name + description`. |
+| **Lỗi cũ** | (1) Frontend chỉ lưu localStorage, KHÔNG gọi API backend. (2) Backend thiếu auth decorator. (3) Matching dùng label thô. |
+| **Fix** | Viết lại `vibeApi.js` để sync với backend, thêm auth, dùng prompt_keyword. |
 
-Do liên tiếp gặp lỗi 404 và 429, tính năng AI Scoring Vòng 2 chưa bao giờ thực sự hoạt động trong môi trường thực tế. Tuy nhiên, hệ thống vẫn trả kết quả ổn định nhờ cơ chế fallback.
+#### 3.1.3. S_time (20%) — Time Penalty ✅
+
+| Mục | Chi tiết |
+|---|---|
+| **Cách hoạt động** | `S_time = max(0.1, 1.0 - total_seconds / 18000)`. Dữ liệu từ **Goong Distance Matrix API** (realtime). |
+
+#### 3.1.4. Về Rating — Tại sao loại bỏ?
+
+File dữ liệu gốc `district1_full_data.json` **KHÔNG có trường `rating`** → Tất cả 200 POI có `rating = 0` → Rating giả = 3.0 cho MỌI POI → **Vô nghĩa**. Đã loại bỏ, kiến trúc sẵn sàng thêm lại khi có dữ liệu thực.
+
+| Thành phần | Trọng số | Nguồn dữ liệu | Trạng thái |
+|---|---|---|---|
+| S_prompt (Cosine Similarity) | **50%** | Vietnamese SBERT | ✅ |
+| S_pref (Vibe Tag) | **30%** | User profile + prompt_keyword | ✅ Đã fix |
+| S_time (Time Penalty) | **20%** | Goong API | ✅ |
+
+---
+
+### 3.2. Vòng 2 — Gemini AI Scoring (30%) ✅ HOẠT ĐỘNG ỔN ĐỊNH
+
+| Mục | Chi tiết |
+|---|---|
+| **Model** | `gemini-2.5-flash` |
+| **Trạng thái** | ✅ Ổn định — `[Gemini] Scoring & Reasoning OK` |
+| **Cách hoạt động** | Gửi danh sách POI + prompt lên Gemini, chấm 3 tiêu chí: Phù hợp ý định, Đa dạng trải nghiệm, Logic di chuyển. |
+| **Fallback** | Gemini lỗi → dùng `score_v1`. Web vẫn chạy bình thường. |
 
 ---
 
@@ -92,29 +110,45 @@ Do liên tiếp gặp lỗi 404 và 429, tính năng AI Scoring Vòng 2 chưa ba
 
 | File | Loại thay đổi | Mô tả |
 |---|---|---|
-| `backend/api/ai_services.py` | **Viết lại toàn bộ** | Migration SDK, implement scoring-only strategy, retry thông minh, fallback |
-| `backend/api/itinerary_optimizer.py` | **Sửa đổi** | Tách storytelling ra local (`_generate_ai_reason`), giảm `top_bonus` từ 20→10 |
-| `backend/api/goong_service.py` | **Sửa đổi nhỏ** | Thêm logging cho AutoComplete response, `.strip()` cho API key |
-| `backend/core/settings.py` | **Sửa đổi** | Đổi thứ tự load `.env`, thêm `override=True` |
-| `backend/requirements.txt` | **Sửa đổi** | Thêm `google-genai` thay `google-generativeai` |
-| `backend/.env` | **Cấu hình** | Thêm dòng `GEMINI_API_KEY=...` |
-| `N09_TDTT/.env` (root) | **Đã xóa** | Xóa file trùng lặp gây xung đột biến môi trường |
+| `backend/api/ai_services.py` | **Viết lại scoring** | Công thức 50/30/20, bỏ rating giả, dùng prompt_keyword |
+| `backend/api/views.py` | **Sửa đổi** | Thêm `@authentication_classes` cho `smartItinerary` |
+| `backend/api/semantic_search.py` | **Sửa đổi** | Thêm `rating`, `description` vào cache và search results |
+| `frontend/src/lib/vibeApi.js` | **Viết lại** | Sync vibes lên backend khi đăng nhập, fallback localStorage |
+| `frontend/src/components/Sidebar.jsx` | **Sửa đổi** | Thêm Firebase token vào API calls |
 
 ---
 
-## 5. Lưu ý kỹ thuật cho team
+## 5. Lỗi đã phát hiện & Trạng thái khắc phục
+
+### 5.1. ✅ Rating luôn = 3.0 → ĐÃ XỬ LÝ
+
+**Nguyên nhân:** File JSON gốc không có trường `rating` → DB lưu `rating = 0`.  
+**Giải pháp:** Loại bỏ rating giả, chuyển sang `S_time` (dữ liệu thực từ Goong API).
+
+### 5.2. ✅ Vibe Tag không hoạt động → ĐÃ FIX
+
+**Nguyên nhân (3 lỗi chồng nhau):**
+1. `vibeApi.js`: `saveUserVibes()` chỉ lưu localStorage, KHÔNG gọi POST API.
+2. `views.py`: `smartItinerary` thiếu `@authentication_classes` → không nhận diện user.
+3. `ai_services.py`: Matching dùng `label` thay vì `prompt_keyword`.
+
+**Giải pháp:** Fix cả 3 — vibeApi gọi API + gửi token, views thêm auth, scoring dùng prompt_keyword.
+
+---
+
+## 6. Lưu ý kỹ thuật cho team
 
 ### Cách thay đổi Model Gemini
 
-Nếu cần đổi sang model khác (ví dụ khi Google ra model mới), chỉ cần sửa **1 dòng duy nhất** trong file `backend/api/ai_services.py`:
+Sửa **1 dòng** trong `backend/api/ai_services.py`:
 
 ```python
-GEMINI_MODEL = 'gemini-1.5-flash'  # ← Thay bằng model mới tại đây
+GEMINI_MODEL = 'gemini-2.5-flash'  # ← Thay bằng model mới tại đây
 ```
 
-### Cách tắt hoàn toàn Gemini (nếu cần)
+### Cách tắt hoàn toàn Gemini
 
-Xóa hoặc comment dòng `GEMINI_API_KEY` trong `backend/.env`. Hệ thống sẽ tự nhận biết và bỏ qua toàn bộ Gemini scoring.
+Xóa hoặc comment dòng `GEMINI_API_KEY` trong `backend/.env`. Hệ thống sẽ tự bỏ qua Gemini scoring.
 
 ### Cách test nhanh
 

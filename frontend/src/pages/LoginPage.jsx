@@ -45,7 +45,8 @@ export default function LoginPage() {
                 }
             });
 
-            if (!checkResponse.ok) {
+            const isNewUser = !checkResponse.ok;
+            if (isNewUser) {
                 console.log("Người dùng mới hoàn toàn, đang khởi tạo Profile rỗng...");
                 await fetch(`http://localhost:8000/api/profile/`, {
                     method: "POST",
@@ -62,7 +63,8 @@ export default function LoginPage() {
                 console.log("Đã tìm thấy dữ liệu cũ, không ghi đè.");
             }
 
-            navigate("/");
+            // Nếu người dùng mới → mở modal chọn sở thích bắt buộc
+            navigate("/", isNewUser ? { state: { showOnboarding: true } } : undefined);
 
         } catch (err) {
             console.error("Lỗi đăng nhập MXH:", err);
@@ -93,16 +95,10 @@ export default function LoginPage() {
         e.preventDefault();
         setLoading(true); setError("");
 
-        if (formData.password !== formData.confirmPassword) {
-            setError("Mật khẩu xác nhận không khớp!");
-            setLoading(false); return;
-        }
-
         try {
             const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
-            await updateProfile(userCredential.user, { displayName: formData.fullName });
 
-            // GỬI DỮ LIỆU XUỐNG DJANGO
+            // GỬI DỮ LIỆU XUỐNG DJANGO (khởi tạo profile rỗng)
             const token = await userCredential.user.getIdToken();
             await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/profile/`, {
                 method: "POST",
@@ -111,12 +107,13 @@ export default function LoginPage() {
                     "Authorization": `Bearer ${token}`
                 },
                 body: JSON.stringify({
-                    phone: formData.phone,
-                    birth_date: formData.birthDate,
+                    phone: "",
+                    birth_date: null,
                 })
             });
 
-            navigate("/onboarding");
+            // Đăng ký xong → về trang chính + mở modal chọn sở thích bắt buộc
+            navigate("/", { state: { showOnboarding: true } });
         } catch (err) {
             if (err.code === "auth/email-already-in-use") setError("Email này đã được sử dụng.");
             else if (err.code === "auth/weak-password") setError("Mật khẩu phải từ 6 ký tự trở lên.");
@@ -223,40 +220,6 @@ export default function LoginPage() {
                 {view === 'register' && (
                     <form onSubmit={handleRegister} className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
 
-                        {/* Họ và Tên  */}
-                        <div className="space-y-1">
-                            <label className="text-xs text-slate-400 font-medium">Họ và tên</label>
-                            <div className="relative">
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                <Input name="fullName" required onChange={handleInputChange} className="pl-9 bg-slate-950 border-slate-800 text-white text-sm h-10" placeholder="Nguyễn Văn A" />
-                            </div>
-                        </div>
-
-                        {/* Số điện thoại & Ngày sinh */}
-                        <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Số điện thoại</label>
-                                <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                    <Input name="phone" required onChange={handleInputChange} className="pl-9 bg-slate-950 border-slate-800 text-white text-sm h-10" placeholder="0901234567" />
-                                </div>
-                            </div>
-
-                            <div className="space-y-1">
-                                <label className="text-xs text-slate-400 font-medium">Ngày sinh</label>
-                                <div className="relative">
-                                    <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                    <Input
-                                        name="birthDate"
-                                        type="date"
-                                        required
-                                        onChange={handleInputChange}
-                                        className="pl-9 bg-slate-950 border-slate-800 text-white text-sm h-10 [color-scheme:dark]"
-                                    />
-                                </div>
-                            </div>
-                        </div>
-
                         {/*  Email */}
                         <div className="space-y-1">
                             <label className="text-xs text-slate-400 font-medium">Email</label>
@@ -271,14 +234,6 @@ export default function LoginPage() {
                             <div className="relative">
                                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                                 <Input name="password" type="password" required onChange={handleInputChange} className="pl-9 bg-slate-950 border-slate-800 text-white text-sm h-10" placeholder="••••••••" />
-                            </div>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-xs text-slate-400 font-medium">Xác nhận mật khẩu</label>
-                            <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
-                                <Input name="confirmPassword" type="password" required onChange={handleInputChange} className="pl-9 bg-slate-950 border-slate-800 text-white text-sm h-10" placeholder="••••••••" />
                             </div>
                         </div>
 

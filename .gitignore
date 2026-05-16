@@ -1,18 +1,19 @@
-# --- Python (Backend & AI) ---
+# ======================================
+# .gitignore — Dự án AI Itinerary Planner (N09_TDTT)
+# ======================================
+
+# --- Python (Backend & AI Engine) ---
 __pycache__/
-backend/core/__pycache__
 *.py[cod]
 *$py.class
 *.so
 .Python
-env/
 build/
 develop-eggs/
 dist/
 downloads/
 eggs/
 .eggs/
-backend/lib/
 lib64/
 parts/
 sdist/
@@ -21,8 +22,11 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+
+# --- Virtual Environments ---
 .venv/
 venv/
+env/
 ENV/
 
 # --- Django ---
@@ -32,40 +36,34 @@ db.sqlite3
 db.sqlite3-journal
 media/
 backend/media/
-**/migrations/__pycache__/
 
 # --- Node.js (Frontend) ---
 node_modules/
-frontend/node_modules/
 frontend/dist/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .eslintcache
 
-# --- Environment Files ---
+# --- Environment & Secrets ---
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 *.env
-backend/.env
-frontend/.env
+serviceAccountKey.json
 
 # --- Infrastructure & Heavy Data ---
 osrm_data/
 *.osrm*
 *.pbf
-scripts/__pycache__/
-ai_engine/__pycache__/
 
 # --- AI Models & Heavy Assets ---
 *.pt
 *.bin
 *.h5
 *.onnx
-frontend/public/assets/images/locations/
 
 # --- IDEs & Editors ---
 .vscode/
@@ -82,6 +80,3 @@ frontend/public/assets/images/locations/
 ._*
 Thumbs.db
 desktop.ini
-
-serviceAccountKey.json
-/serviceAccountKey.json

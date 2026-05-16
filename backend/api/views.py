@@ -130,6 +130,7 @@ def searchLocations(request):
 
 
 @api_view(['POST'])
+@authentication_classes([FirebaseAuthentication])
 def smartItinerary(request):
     data = request.data
     raw_stops = data.get("stops", [])
@@ -154,13 +155,18 @@ def smartItinerary(request):
         return Response({"status": "error", "message": "Cần ít nhất 1 điểm dừng để bắt đầu."}, status=400)
 
     user_vibes = []
+    print(f"[Auth Debug] is_authenticated={request.user.is_authenticated}, user={request.user}")
     if request.user.is_authenticated:
         prompt_text = _build_prompt_with_vibes(request.user, prompt_text)
         try:
             profile = request.user.profile
-            user_vibes = list(profile.vibes.values('label'))
-        except Exception:
-            pass
+            user_vibes = list(profile.vibes.values('label', 'prompt_keyword'))
+            print(f"[Auth Debug] Loaded {len(user_vibes)} vibes: {user_vibes}")
+        except Exception as e:
+            print(f"[Auth Debug] Error loading vibes: {e}")
+    else:
+        auth_header = request.META.get('HTTP_AUTHORIZATION', 'NONE')
+        print(f"[Auth Debug] NOT authenticated. Auth header present: {auth_header[:20] if auth_header != 'NONE' else 'NO'}")
 
     # Nếu người dùng đã trả lời phỏng vấn, nối vào prompt để làm giàu ngữ cảnh
     if ai_clarification:
@@ -194,7 +200,8 @@ def smartItinerary(request):
                 "image_list": loc.image_list,
                 "description": loc.description,
                 "category": loc.category,
-                "address": loc.address
+                "address": loc.address,
+                "rating": loc.rating or 0,
             })
         elif lat and lng:
             # Địa điểm từ Goong (không có trong DB) → dùng trực tiếp dữ liệu FE gửi lên
