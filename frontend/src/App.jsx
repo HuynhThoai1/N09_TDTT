@@ -1,6 +1,5 @@
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
-import OnboardingPage from "./pages/OnboardingPage.jsx";
 
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import MainPage from "./pages/MainPage";
@@ -20,10 +19,6 @@ const router = createBrowserRouter([
 	{
 		path: "/",
 		element: <MainPage />,
-	},
-	{
-		path: "/onboarding",
-		element: <OnboardingPage />,
 	},
 
     {

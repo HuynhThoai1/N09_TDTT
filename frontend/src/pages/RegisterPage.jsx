@@ -16,8 +16,8 @@ export default function RegisterPage() {
     e.preventDefault();
     try {
       await createUserWithEmailAndPassword(auth, email, password);
-      // Đăng ký xong thì đẩy thẳng qua trang chọn Sở thích 
-      navigate('/onboarding'); 
+      // Đăng ký xong thì đẩy thẳng qua trang chính kèm flag mở modal Onboarding
+      navigate('/', { state: { showOnboarding: true } }); 
     } catch (err) {
       alert('Đăng ký thất bại. Email đã tồn tại hoặc mật khẩu quá ngắn.');
     }

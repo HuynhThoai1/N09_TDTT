@@ -97,19 +97,22 @@ def _call_gemini_with_retry(client, prompt, max_retries=2):
         raise e
 
 
-# --- VÒNG 1: Chấm điểm bằng Python (S_prompt + S_pref + S_other) ---
+# --- VÒNG 1: Chấm điểm bằng Python (S_prompt + S_pref + S_time) ---
 
 def calculate_route_score_v1(route_pois, prompt_text, user_vibes, total_seconds=0):
     """
     Tính điểm Vòng 1 cho một route:
-    - S_prompt (40%): Cosine Similarity với prompt (sentence-transformers).
-    - S_pref   (30%): Khớp Vibe Tag của user.
-    - S_other  (30%): Rate trung bình + thời gian di chuyển.
+    - S_prompt (50%): Cosine Similarity với prompt (sentence-transformers).
+    - S_pref   (30%): Khớp Vibe Tag của user (dùng prompt_keyword).
+    - S_time   (20%): Phạt thời gian di chuyển (dữ liệu thực từ Goong API).
+    
+    Lưu ý: Rating đã bị loại bỏ do dữ liệu gốc không có trường rating
+    (tất cả POI = 0). Khi có dữ liệu rating thực, có thể thêm lại vào công thức.
     """
     if not route_pois:
         return 0.0
 
-    # --- S_prompt ---
+    # --- S_prompt (50%) ---
     s_prompt = 0.0
     if prompt_text:
         try:
@@ -121,29 +124,71 @@ def calculate_route_score_v1(route_pois, prompt_text, user_vibes, total_seconds=
         except Exception as e:
             print(f"[Score V1] Error in S_prompt: {e}")
 
-    # --- S_pref ---
+    # --- S_pref (30%) — Semantic Vibe Matching ---
     s_pref = 0.0
+    VIBE_MATCH_THRESHOLD = 0.35  # Ngưỡng cosine similarity để chấp nhận là "phù hợp"
     if user_vibes:
-        user_labels = [v.get('label', '').lower() for v in user_vibes if isinstance(v, dict)]
-        if not user_labels and isinstance(user_vibes[0], str):
-            user_labels = [v.lower() for v in user_vibes]
+        try:
+            model = _get_model()
+            if model:
+                # Gom tất cả prompt_keyword thành danh sách chuỗi mô tả vibe
+                vibe_texts = []
+                for v in user_vibes:
+                    if isinstance(v, dict):
+                        kw = v.get('prompt_keyword', '') or v.get('label', '')
+                        if kw:
+                            vibe_texts.append(kw)
+                    elif isinstance(v, str) and v:
+                        vibe_texts.append(v)
 
-        match_count = 0
-        total_pois = len(route_pois)
-        for p in route_pois:
-            cat = str(p.get('category', '')).lower()
-            desc = str(p.get('description', '')).lower()
-            if any(l in cat or l in desc for l in user_labels):
-                match_count += 1
-        s_pref = match_count / total_pois if total_pois > 0 else 0.0
+                if vibe_texts:
+                    # Encode vibe keywords thành vectors
+                    vibe_vectors = model.encode(vibe_texts)
 
-    # --- S_other ---
-    total_rate = sum(float(p.get('rate') or 3.0) for p in route_pois)
-    rate_score = (total_rate / len(route_pois)) / 5.0
-    time_score = max(0.1, 1.0 - (total_seconds / 18000))
-    s_other = 0.6 * rate_score + 0.4 * time_score
+                    # Encode từng POI (category + name + description) thành vectors
+                    poi_texts = [
+                        f"{p.get('category', '')} {p.get('name', '')} {p.get('description', '')}"
+                        for p in route_pois
+                    ]
+                    poi_vectors = model.encode(poi_texts)
 
-    score = 0.4 * max(0, s_prompt) + 0.3 * s_pref + 0.3 * s_other
+                    # Tính cosine similarity giữa mỗi POI và TẤT CẢ vibes
+                    # Nếu max similarity > threshold → POI này phù hợp sở thích user
+                    similarity_matrix = cos_sim(poi_vectors, vibe_vectors)
+                    match_count = 0
+                    match_details = []
+                    for i, p in enumerate(route_pois):
+                        max_sim = float(similarity_matrix[i].max())
+                        if max_sim >= VIBE_MATCH_THRESHOLD:
+                            match_count += 1
+                            match_details.append(f"{p.get('name', '?')[:15]}={max_sim:.2f}")
+
+                    s_pref = match_count / len(route_pois) if len(route_pois) > 0 else 0.0
+                    if match_details:
+                        print(f"[Score V1 Debug]   → Vibe semantic matches: {match_details}")
+        except Exception as e:
+            print(f"[Score V1] Error in S_pref (semantic): {e}")
+            s_pref = 0.0
+
+    # --- S_time (20%) ---
+    # Dữ liệu thực từ Goong Distance Matrix API
+    # Ưu tiên lộ trình di chuyển ngắn hơn (< 5 giờ = 18000s)
+    s_time = max(0.1, 1.0 - (total_seconds / 18000))
+
+    # --- Tổng điểm V1 ---
+    score = 0.5 * max(0, s_prompt) + 0.3 * s_pref + 0.2 * s_time
+
+    # --- DEBUG LOG ---
+    poi_names = [p.get('name', '?')[:20] for p in route_pois]
+    print(f"[Score V1 Debug] POIs: {poi_names}")
+    print(f"[Score V1 Debug] S_prompt={s_prompt:.3f} (50%) | S_pref={s_pref:.3f} (30%) | S_time={s_time:.3f} (20%)")
+    if user_vibes:
+        kw_list = [v.get('prompt_keyword', v.get('label', '?')) if isinstance(v, dict) else v for v in user_vibes]
+        print(f"[Score V1 Debug]   → Vibe keywords: {kw_list} → matched {int(s_pref * len(route_pois))}/{len(route_pois)} POIs")
+    else:
+        print(f"[Score V1 Debug]   → Vibe: Không có (user chưa đăng nhập hoặc chưa chọn)")
+    print(f"[Score V1 Debug]   → FINAL score_v1 = {min(1.0, max(0.0, score)):.4f}")
+
     return min(1.0, max(0.0, score))
 
 
