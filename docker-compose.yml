@@ -1,30 +1,19 @@
-version: '3.8'
-
 services:
-  # 1. Cơ sở dữ liệu PostgreSQL tích hợp pgvector cho AI
+  # Cơ sở dữ liệu PostgreSQL tích hợp pgvector cho AI
   db:
     image: ankane/pgvector:latest
     container_name: n09_tdtt_postgres
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "${DB_PORT:-5433}:5432"
     environment:
       - POSTGRES_DB=${DB_NAME:-n09_tdtt_db}
       - POSTGRES_USER=${DB_USER:-admin}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-admin_password}
+    env_file:
+      - backend/.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
     restart: always
-
-  # 2. Engine bản đồ (Đã tắt do không sử dụng)
-  # osrm:
-  #   image: osrm/osrm-backend
-  #   container_name: n09_tdtt_osrm
-  #   ports:
-  #     - "5000:5000"
-  #   volumes:
-  #     - ./osrm_data:/data
-  #   command: osrm-routed --algorithm mld /data/vietnam-latest.osrm
-  #   restart: always
 
 volumes:
   postgres_data:
