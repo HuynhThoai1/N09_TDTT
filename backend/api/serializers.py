@@ -21,8 +21,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
         model = UserProfile
         fields = ['phone', 'birth_date', 'vibes'] 
         depth = 1 
-    # BẢO VỆ DỮ LIỆU
-    def validate_birth_year(self, value):
+    def to_internal_value(self, data):
+        # Sao chép và chuyển đổi chuỗi rỗng thành None cho birth_date trước khi validate
+        data = data.copy() if hasattr(data, 'copy') else dict(data)
+        if 'birth_date' in data and data['birth_date'] == '':
+            data['birth_date'] = None
+        return super().to_internal_value(data)
+
+    def validate_birth_date(self, value):
         if value == "" or value is None:
             return None
         return value

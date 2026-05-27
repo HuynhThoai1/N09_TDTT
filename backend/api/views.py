@@ -304,10 +304,20 @@ def goongAutocomplete(request):
     if not input_text:
         return Response({"error": "Thiếu tham số 'input'."}, status=400)
 
+    # Chỉ gọi Goong khi input có ít nhất một ký tự chữ/số để tránh request vô ích.
+    if not any(ch.isalnum() for ch in input_text):
+        return Response({"error": "Tham số 'input' không hợp lệ."}, status=400)
+
     location = request.GET.get('location', None)
     limit = int(request.GET.get('limit', 10))
-    data = goong_autocomplete(input_text, location=location, limit=limit)
-    return Response(data)
+    
+    try:
+        data = goong_autocomplete(input_text, location=location, limit=limit)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=502)
+        return Response(data)
+    except Exception as e:
+        return Response({"error": f"Lỗi hệ thống khi gọi API Autocomplete: {str(e)}"}, status=500)
 
 
 @api_view(['GET'])
@@ -316,8 +326,13 @@ def goongPlaceDetail(request):
     if not place_id:
         return Response({"error": "Thiếu tham số 'place_id'."}, status=400)
 
-    data = goong_place_detail(place_id)
-    return Response(data)
+    try:
+        data = goong_place_detail(place_id)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=502)
+        return Response(data)
+    except Exception as e:
+        return Response({"error": f"Lỗi hệ thống khi gọi API PlaceDetail: {str(e)}"}, status=500)
 
 
 @api_view(['GET'])
@@ -328,15 +343,20 @@ def goongGeocode(request):
     if not address and not latlng:
         return Response({"error": "Cần truyền 'address' hoặc 'latlng'."}, status=400)
 
-    if latlng:
-        parts = latlng.split(',')
-        if len(parts) != 2:
-            return Response({"error": "Định dạng latlng không hợp lệ. VD: 10.7769,106.7009"}, status=400)
-        data = goong_reverse_geocode(parts[0].strip(), parts[1].strip())
-    else:
-        data = goong_geocode(address)
+    try:
+        if latlng:
+            parts = latlng.split(',')
+            if len(parts) != 2:
+                return Response({"error": "Định dạng latlng không hợp lệ. VD: 10.7769,106.7009"}, status=400)
+            data = goong_reverse_geocode(parts[0].strip(), parts[1].strip())
+        else:
+            data = goong_geocode(address)
 
-    return Response(data)
+        if isinstance(data, dict) and "error" in data:
+            return Response(data, status=502)
+        return Response(data)
+    except Exception as e:
+        return Response({"error": f"Lỗi hệ thống khi gọi API Geocode: {str(e)}"}, status=500)
 
 @api_view(['GET', 'POST'])
 def reindex_vectors(request):

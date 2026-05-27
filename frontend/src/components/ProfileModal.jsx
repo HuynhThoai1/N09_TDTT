@@ -59,9 +59,19 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
         setMessage({ type: "", text: "" });
 
         try {
+            // 1. Cập nhật Họ và Tên lên Firebase Auth
+            if (fullName.trim() !== (user.displayName || "")) {
+                await updateProfile(user, { displayName: fullName.trim() });
+            }
+
+            // 2. Cập nhật mật khẩu nếu có nhập
+            if (newPassword) {
+                await updatePassword(user, newPassword);
+                setNewPassword("");
+            }
+
+            // 3. Gửi thông tin (số điện thoại, ngày sinh) về Django Backend
             const token = await user.getIdToken();
-            
-            // Chỉ gửi dữ liệu chữ, không gửi file nữa
             const response = await fetch(`${API_URL}/api/profile/`, {
                 method: "POST",
                 headers: {
@@ -70,7 +80,7 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
                 },
                 body: JSON.stringify({
                     phone: phone,
-                    birth_date: birthDate
+                    birth_date: birthDate || null
                 })
             });
 
@@ -81,7 +91,7 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
             }
         } catch (error) {
             console.error(error);
-            setMessage({ type: "error", text: "Có lỗi xảy ra, Tài kiểm tra lại server nhé!" });
+            setMessage({ type: "error", text: "Có lỗi xảy ra khi cập nhật thông tin!" });
         } finally {
             setLoading(false);
         }
@@ -102,7 +112,11 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
                     </button>
                 </div>
 
-                <form onSubmit={handleSave} className="p-6 space-y-5">
+                <form onSubmit={handleSave} className="p-6 space-y-5" autoComplete="off">
+                    {/* Các input ẩn để dụ Chrome tự động điền thông tin đăng nhập vào đây, không đè lên SĐT */}
+                    <input type="text" name="chrome-autofill-dummy1" style={{ display: 'none' }} />
+                    <input type="password" name="chrome-autofill-dummy2" style={{ display: 'none' }} />
+
                     {message.text && (
                         <div className={`p-3 rounded-lg text-sm border ${message.type === 'success' ? 'bg-green-500/10 border-green-500/20 text-green-400' : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
                             {message.text}
@@ -143,6 +157,9 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
                             <div className="relative">
                                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                                 <Input 
+                                    type="tel"
+                                    name="phone"
+                                    autoComplete="off"
                                     value={phone} 
                                     onChange={(e) => setPhone(e.target.value)} 
                                     className="pl-9 bg-slate-950 border-slate-700 text-white" 
@@ -177,6 +194,7 @@ export default function ProfileModal({ isOpen, onClose, onLogout }) {
                             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
                             <Input 
                                 type="password" 
+                                autoComplete="new-password"
                                 value={newPassword} 
                                 onChange={(e) => setNewPassword(e.target.value)} 
                                 className="pl-9 bg-slate-950 border-slate-700 text-white" 

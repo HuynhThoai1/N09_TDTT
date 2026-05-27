@@ -230,6 +230,8 @@ Trả về JSON thuần (KHÔNG markdown), format:
 
     try:
         text = _call_gemini_with_retry(client, prompt)
+        print(f"[DEBUG] Gemini Raw Text: {text}")
+
         if text.startswith('```json'):
             text = text[7:]
         if text.startswith('```'):
@@ -238,6 +240,7 @@ Trả về JSON thuần (KHÔNG markdown), format:
             text = text[:-3]
 
         scores = json.loads(text.strip())
+        
         for i, route in enumerate(top_routes):
             gemini_data = scores.get(f"route_{i}", {})
             if isinstance(gemini_data, dict):
