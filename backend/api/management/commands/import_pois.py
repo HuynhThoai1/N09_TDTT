@@ -35,25 +35,29 @@ class Command(BaseCommand):
         count = 0
         for item in data:
             try:
-                # Tạo object mới
+                # Tạo object mới hỗ trợ cả hai loại khóa tọa độ và nạp đầy đủ trường
+                lat_val = item.get('latitude') if item.get('latitude') is not None else item.get('lat')
+                lng_val = item.get('longitude') if item.get('longitude') is not None else item.get('lng')
+                
                 poi = PointOfInterest(
+                    poi_id=item.get('poi_id'),
                     name=item.get('name'),
-                    latitude=item.get('lat'),
-                    longitude=item.get('lng'),
+                    latitude=lat_val,
+                    longitude=lng_val,
+                    address=item.get('address', ''),
                     category=item.get('category'),
                     description=item.get('description', ''),
                     image=item.get('image', ''),
-                    rating=item.get('rating', 0),
-                    user_ratings_total=item.get('reviews', 0)
+                    image_list=item.get('image_list', []),
+                    rating=item.get('rating', 0.0),
+                    user_ratings_total=item.get('reviews') if item.get('reviews') is not None else item.get('user_ratings_total', 0),
+                    vector=item.get('vector') # Nhận CLIP vector có sẵn từ JSON
                 )
 
-                # Tự động tạo Text Vector (SBERT)
-                if sbert_model:
+                # Tự động tạo Text Vector (SBERT) nếu chưa có sẵn hoặc cần ghi đè
+                if sbert_model and not poi.text_vector:
                     text_context = f"{poi.name} {poi.category} {poi.description}"
                     poi.text_vector = sbert_model.encode(text_context).tolist()
-
-                # (Optional) Tạo Visual Vector (CLIP) nếu có link ảnh thật
-                # Ở đây tạm thời để null nếu ảnh là link ảo
                 
                 poi.save()
                 count += 1

@@ -48,23 +48,29 @@ def osrm_table(points: list) -> list[list[float]] | None:
     print(f"[Goong Debug] Requesting Matrix for {len(points)} points: {coords_list}")
     
     coords = "|".join(coords_list)
-    data = goong_distance_matrix(origins=coords, destinations=coords)
-    
-    if data and data.get("rows"):
-        matrix = []
-        for row in data["rows"]:
-            row_times = []
-            for element in row.get("elements", []):
-                if element.get("status") == "OK":
-                    row_times.append(float(element.get("duration", {}).get("value", 0)))
-                else:
-                    # Nếu một điểm không tìm thấy đường đi (NOT_FOUND), gán giá trị lớn
-                    row_times.append(999999.0) 
-            matrix.append(row_times)
-        return matrix
-    
-    if data and data.get("status") == "NOT_FOUND":
-        print("[Goong Warning] Một hoặc nhiều tọa độ không tìm thấy trên bản đồ Goong. Kiểm tra tọa độ trong database.")
+    try:
+        data = goong_distance_matrix(origins=coords, destinations=coords)
+        if not data or "error" in data:
+            print(f"[Goong API Error] Failed to fetch matrix: {data}")
+            return None
+
+        if data.get("rows"):
+            matrix = []
+            for row in data["rows"]:
+                row_times = []
+                for element in row.get("elements", []):
+                    if element.get("status") == "OK":
+                        row_times.append(float(element.get("duration", {}).get("value", 0)))
+                    else:
+                        # Nếu một điểm không tìm thấy đường đi (NOT_FOUND), gán giá trị lớn
+                        row_times.append(999999.0) 
+                matrix.append(row_times)
+            return matrix
+        
+        if data.get("status") == "NOT_FOUND":
+            print("[Goong Warning] Một hoặc nhiều tọa độ không tìm thấy trên bản đồ Goong. Kiểm tra tọa độ trong database.")
+    except Exception as e:
+        print(f"[Goong Exception] Exception in osrm_table: {e}")
         
     return None
 
@@ -79,12 +85,16 @@ def osrm_route(ordered_points: list) -> dict | None:
     total_meters = 0
     full_geometry = []
     
-    for i in range(len(ordered_points) - 1):
-        origin = f"{ordered_points[i]['latitude']},{ordered_points[i]['longitude']}"
-        destination = f"{ordered_points[i+1]['latitude']},{ordered_points[i+1]['longitude']}"
-        
-        data = goong_directions(origin=origin, destination=destination)
-        if data and data.get("routes"):
+    try:
+        for i in range(len(ordered_points) - 1):
+            origin = f"{ordered_points[i]['latitude']},{ordered_points[i]['longitude']}"
+            destination = f"{ordered_points[i+1]['latitude']},{ordered_points[i+1]['longitude']}"
+            
+            data = goong_directions(origin=origin, destination=destination)
+            if not data or "error" in data or not data.get("routes"):
+                print(f"[Goong API Error] Failed to get directions: {data}")
+                return None
+                
             route = data["routes"][0]
             leg = route["legs"][0]
             total_seconds += leg.get("duration", {}).get("value", 0)
@@ -97,6 +107,9 @@ def osrm_route(ordered_points: list) -> dict | None:
                     full_geometry.extend(decoded[1:])
                 else:
                     full_geometry.extend(decoded)
+    except Exception as e:
+        print(f"[Goong Exception] Exception in osrm_route: {e}")
+        return None
                     
     if full_geometry:
         return {
