@@ -1,4 +1,4 @@
-# 🗺️ AI Itinerary Planner - Hệ thống Lên kế hoạch Hành trình Thông minh
+# 🗺️ Hệ thống Tối ưu Lịch trình và Điều hướng Du lịch Đa Trạm
 
 [![Django](https://img.shields.io/badge/Backend-Django_6.0-green?logo=django)](https://www.djangoproject.com/)
 [![React](https://img.shields.io/badge/Frontend-React_18-blue?logo=react)](https://react.dev/)
@@ -6,7 +6,7 @@
 [![Goong Maps](https://img.shields.io/badge/Map_SDK-Goong_Maps-orange?logo=google-maps)](https://goong.io/)
 [![AI-CLIP](https://img.shields.io/badge/AI-CLIP_ViT--B--32-orange?logo=pytorch)](https://openai.com/blog/clip/)
 
-Hệ thống ứng dụng **Goong Maps SDK chính chủ** kết hợp với trí tuệ nhân tạo để tự động hóa việc lên kế hoạch hành trình du lịch dựa trên **ý định người dùng (Intent-driven)** và tối ưu hóa bằng **Giải thuật Di truyền (Genetic Algorithm)**.
+Hệ thống ứng dụng **Goong Maps SDK chính chủ** kết hợp với trí tuệ nhân tạo để tự động hóa việc lên kế hoạch hành trình du lịch dựa trên **ý định người dùng** và tối ưu hóa bằng **Giải thuật Di truyền (Genetic Algorithm)**.
 
 ---
 
@@ -48,9 +48,6 @@ N09_TDTT/
 │   ├── caodata.ipynb       # Notebook cào dữ liệu từ OpenStreetMap (Colab)
 │   ├── crawl_poi_images.py # Script tải ảnh địa điểm từ Bing
 │   └── generate_vectors.py # Script sinh CLIP vector offline
-│
-├── docs/                   # Tài liệu dự án
-│   └── assets/ERD.png      # Sơ đồ Entity-Relationship
 │
 └── docker-compose.yml      # Hạ tầng PostgreSQL + pgvector
 ```
@@ -143,4 +140,4 @@ Do các file ảnh địa điểm rất nặng, hãy tải từ [Drive nội b�
 
 ---
 
-*Dự án được phát triển bởi N09 - Nhóm Tư duy tính toán.*
+*Dự án được phát triển bởi Nhóm 09 - Môn Tư duy tính toán - Trường Đại Học Khoa Học Tự Nhiên.*
